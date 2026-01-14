@@ -114,16 +114,24 @@ def copy_template(service: str) -> bool:
         log_error(f"[copy_template] 예외 발생: {e}")
         return False
 
-def ensure_network():
-    """ai4infra 네트워크 생성 - 극단적 간결 버전"""
-    cmd = ['docker', 'network', 'ls', '--filter', 'name=ai4infra', '--format', '{{.Name}}']
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    
-    if 'ai4infra' not in result.stdout:
-        subprocess.run(['docker', 'network', 'create', 'ai4infra'])
-        log_info("[ensure_network] ai4infra 네트워크 생성됨")
-    else:
-        log_debug("[ensure_network] ai4infra 네트워크 이미 존재")
+def ensure_network(networks=None):
+    """
+    [SEC-08] Network Segmentation
+    지정된 도커 네트워크들이 없으면 생성합니다.
+    기본값: ai4infra-public, ai4infra-app, ai4infra-data
+    """
+    if networks is None:
+        networks = ["ai4infra-public", "ai4infra-app", "ai4infra-data"]
+
+    for net in networks:
+        cmd = ['docker', 'network', 'ls', '--filter', f'name={net}', '--format', '{{.Name}}']
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        
+        if net not in result.stdout.strip().split():
+            subprocess.run(['docker', 'network', 'create', net], check=True)
+            log_info(f"[ensure_network] {net} 네트워크 생성됨")
+        else:
+            log_debug(f"[ensure_network] {net} 네트워크 이미 존재")
 
 def start_container(service: str):
     """단일 서비스 컨테이너 시작 - 디버깅 강화 버전"""
@@ -139,6 +147,7 @@ def start_container(service: str):
         log_error(f"[start_container] {service} docker-compose.yml 없음: {compose_file}")
         return
 
+    # [SEC-08] 3-Tier Network 보장
     ensure_network()
 
     cmd = ['ls', '-l', compose_file]

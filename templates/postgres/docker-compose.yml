@@ -6,8 +6,9 @@ services:
 
     mem_limit: 640m
 
-    ports:
-      - "${PORT:-5432}:5432"
+    # [SEC-08] Network Segmentation: Remove Host Port Binding
+    # ports:
+    #   - "${PORT:-5432}:5432"
 
     logging:
       driver: "json-file"
@@ -16,7 +17,7 @@ services:
         max-file: "3"
 
     networks:
-      - ai4infra
+      - ai4infra-data
 
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-postgres}
@@ -33,6 +34,6 @@ services:
       retries: 10
 
 networks:
-  ai4infra:
+  ai4infra-data:
     external: true
-    name: ai4infra
+    name: ai4infra-data

@@ -17,6 +17,21 @@ load_dotenv(os.path.join(PROJECT_ROOT, ".env"))
 
 VAULT_ADDR = os.getenv("VAULT_ADDR", "https://127.0.0.1:8200") # Default to HTTPS
 
+# [SEC-07] mTLS Certificates (Available inside container or script host)
+# Script Host Path (if running on host)
+HOST_CERT = os.path.join(PROJECT_ROOT, "templates/vault/certs/certificate.crt")
+HOST_KEY = os.path.join(PROJECT_ROOT, "templates/vault/certs/private.key")
+HOST_CA = os.path.join(PROJECT_ROOT, "templates/vault/certs/rootCA.crt")
+
+# Container Path (if running inside container/pod)
+# But stick to host paths if we run this script from host
+
+# Fallback: If not found in templates (e.g. not developed yet), try installed path
+if not os.path.exists(HOST_CERT):
+    HOST_CERT = "/opt/ai4infra/vault/certs/certificate.crt"
+    HOST_KEY = "/opt/ai4infra/vault/certs/private.key"
+    HOST_CA = "/opt/ai4infra/vault/certs/rootCA.crt"
+
 # Priority: USB_DIR (from .env) > USB_MOUNT_PATH (Legacy) > Default
 USB_MOUNT_PATH = os.getenv("USB_DIR") or os.getenv("USB_MOUNT_PATH", "/mnt/usb")
 # If it's a relative path (e.g. ./mock_usb), resolve it relative to PROJECT_ROOT
@@ -32,7 +47,13 @@ def log(msg):
 def check_vault_status():
     """Vault 상태 확인 (Sealed 여부)"""
     try:
-        resp = requests.get(f"{VAULT_ADDR}/v1/sys/health", verify=False)
+        # [SEC-07] mTLS Request
+        # verify=HOST_CA (Check Server), cert=(HOST_CERT, HOST_KEY) (Prove Client identity)
+        resp = requests.get(
+            f"{VAULT_ADDR}/v1/sys/health", 
+            cert=(HOST_CERT, HOST_KEY),
+            verify=HOST_CA
+        )
         # 200: Active, 429: Standby, 501: Not Init, 503: Sealed
         code = resp.status_code
         if code == 200:
@@ -67,7 +88,13 @@ def unseal_vault(keys):
                 key = f.read().strip()
             
             payload = {"key": key}
-            resp = requests.post(f"{VAULT_ADDR}/v1/sys/unseal", json=payload, verify=False)
+            # [SEC-07] mTLS Request
+            resp = requests.post(
+                f"{VAULT_ADDR}/v1/sys/unseal", 
+                json=payload, 
+                cert=(HOST_CERT, HOST_KEY),
+                verify=HOST_CA
+            )
             
             if resp.status_code == 200:
                 data = resp.json()

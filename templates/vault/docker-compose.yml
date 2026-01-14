@@ -8,10 +8,11 @@ services:
       - IPC_LOCK
     mem_limit: ${VAULT_MEM_LIMIT:-640m}
 
-    ports:
-      - "${PORT:-8200}:8200"
+    # [SEC-08] Network Segmentation: Remove Host Port Binding
+    # ports:
+    #   - "${PORT:-8200}:8200"
     networks:
-      - ai4infra
+      - ai4infra-data
 
     environment:
       VAULT_ADDR: ${VAULT_ADDR}
@@ -31,6 +32,6 @@ services:
       "
 
 networks:
-  ai4infra:
+  ai4infra-data:
     external: true
-    name: ai4infra
+    name: ai4infra-data

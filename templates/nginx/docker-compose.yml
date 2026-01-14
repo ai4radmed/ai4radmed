@@ -37,7 +37,9 @@ services:
       - /var/cache/nginx
 
     networks:
-      - ai4infra
+      - ai4infra-public
+      - ai4infra-app
+      - ai4infra-data # [SEC-08] Gateway needs access to Data Tier (Vault/Postgres)
 
     volumes:
       # 설정 파일 마운트 (OpenResty 경로)
@@ -63,6 +65,12 @@ services:
       retries: 3
 
 networks:
-  ai4infra:
+  ai4infra-public:
     external: true
-    name: ai4infra
+    name: ai4infra-public
+  ai4infra-app:
+    external: true
+    name: ai4infra-app
+  ai4infra-data:
+    external: true
+    name: ai4infra-data
