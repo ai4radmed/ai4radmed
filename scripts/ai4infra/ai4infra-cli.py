@@ -436,6 +436,10 @@ def init_vault():
     init_cmd = [
         'docker', 'exec', '-i', 
         '-e', 'VAULT_ADDR=https://127.0.0.1:8200',  # [Fix] TLS 인증서 IP 불일치 해결
+        # [SEC-07] mTLS for CLI
+        '-e', 'VAULT_CLIENT_CERT=/vault/certs/certificate.crt',
+        '-e', 'VAULT_CLIENT_KEY=/vault/certs/private.key',
+        '-e', 'VAULT_CACERT=/vault/certs/rootCA.crt',
         'ai4infra-vault',
         'vault', 'operator', 'init',
         '-key-shares=5',

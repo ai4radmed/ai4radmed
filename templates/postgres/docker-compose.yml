@@ -6,6 +6,12 @@ services:
 
     mem_limit: 640m
 
+    # [SEC-09] Immutable Infrastructure
+    read_only: true
+    tmpfs:
+      - /var/run/postgresql:size=512k,mode=1777
+      - /tmp:size=512k,mode=1777
+
     # [SEC-08] Network Segmentation: Remove Host Port Binding
     # ports:
     #   - "${PORT:-5432}:5432"

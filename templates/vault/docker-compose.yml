@@ -6,7 +6,14 @@ services:
 
     cap_add:
       - IPC_LOCK
+    cap_drop:
+      - ALL
     mem_limit: ${VAULT_MEM_LIMIT:-640m}
+
+    # [SEC-09] Immutable Infrastructure
+    read_only: true
+    tmpfs:
+      - /tmp
 
     # [SEC-08] Network Segmentation: Remove Host Port Binding
     # ports:
@@ -24,12 +31,8 @@ services:
       - ${CONF_DIR:-/opt/ai4infra/vault/config}:/vault/config
       - ${USB_DIR:-/mnt/usb}:/mnt/usb:ro # [SEC-06] Auto-Unseal Simulation
 
-    command: >
-      sh -c "
-        cp /vault/certs/certificate.crt /etc/ssl/certs/certificate.crt 2>/dev/null || true;
-        cat /vault/certs/rootCA.crt >> /etc/ssl/certs/ca-certificates.crt 2>/dev/null || true;
-        vault server -config=/vault/config/vault.hcl
-      "
+    # [SEC-09] Removed mutable 'cp' commands. Config uses mounted paths directly.
+    command: vault server -config=/vault/config/vault.hcl
 
 networks:
   ai4infra-data:

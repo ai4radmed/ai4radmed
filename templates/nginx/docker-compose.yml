@@ -12,6 +12,18 @@ services:
       - "${HTTP_PORT:-80}:80"
       - "${HTTPS_PORT:-443}:443"
 
+    # [SEC-09] Immutable Infrastructure & Minimized Capabilities
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE # Allow binding to 80/443
+      - CHOWN # Required for Nginx to switch users
+      - SETGID
+      - SETUID
+      - DAC_OVERRIDE # Required for reading 600 perm keys as restricted root
+
     logging:
       driver: "json-file"
       options:
