@@ -26,6 +26,8 @@ def discover_services(config_dir="config") -> list:
     # Gather all candidate files
     candidates = list(main_config_path.glob("*.yml"))
     candidates.extend(root_path.glob(extension_pattern))
+    # [Phase 4] Add Extensions Pattern
+    candidates.extend(root_path.glob("extensions/*/config/*.yml"))
 
     seen_services = set()    
 

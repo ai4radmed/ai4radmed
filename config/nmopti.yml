@@ -1,0 +1,8 @@
+service:
+  enable: true
+
+description: "AI4RadX NMOpti Extension (Slicer based)"
+
+backup:
+  mode: cold
+  schedule: "0 2 * * *" # Daily 2 AM
