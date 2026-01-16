@@ -1,12 +1,12 @@
 server {
     listen       80;
-    server_name  vaultwarden.ai4infra.internal;
+    server_name  vaultwarden.ai4radmed.internal;
 
     # HTTPS 리다이렉트 (운영 시 활성화)
     # return 301 https://$host$request_uri;
 
     location / {
-        proxy_pass http://ai4infra-vaultwarden:80;
+        proxy_pass http://ai4radmed-vaultwarden:80;
         
         # Proxy Header 설정
         proxy_set_header Host $host;

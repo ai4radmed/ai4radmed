@@ -12,7 +12,7 @@
 
 **예시 구조:**
 ```
-C:\ProgramData\ai4infra\
+C:\ProgramData\ai4radmed\
 ├── postgres\
 │   ├── data\
 │   ├── config\
@@ -33,7 +33,7 @@ C:\ProgramData\ai4infra\
 
 **예시 구조:**
 ```
-C:\Users\{username}\ai4infra\
+C:\Users\{username}\ai4radmed\
 ├── services\
 ├── data\
 └── logs\
@@ -62,7 +62,7 @@ import os
 import platform
 from pathlib import Path
 
-def get_service_path(project_name="ai4infra"):
+def get_service_path(project_name="ai4radmed"):
     system = platform.system().lower()
     
     if system == "linux":
@@ -91,8 +91,8 @@ services:
       - ${SERVICE_PATH}/postgres/data:/var/lib/postgresql/data
       - ${SERVICE_PATH}/postgres/backup:/backup
     
-# Linux: /opt/ai4infra/postgres/data
-# Windows: C:\ProgramData\ai4infra\postgres\data
+# Linux: /opt/ai4radmed/postgres/data
+# Windows: C:\ProgramData\ai4radmed\postgres\data
 ```
 
 ### 3. 설정 파일에서 참조

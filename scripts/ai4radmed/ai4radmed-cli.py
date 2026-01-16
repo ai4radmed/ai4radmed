@@ -53,8 +53,8 @@ from utils.certs_manager import install_root_ca_windows
 
 load_dotenv()
 PROJECT_ROOT = os.getenv("PROJECT_ROOT")
-BASE_DIR = os.getenv('BASE_DIR', '/opt/ai4infra')
-app = typer.Typer(help="AI4INFRA 서비스 관리")
+BASE_DIR = os.getenv('BASE_DIR', '/opt/ai4radmed')
+app = typer.Typer(help="AI4RADMED 서비스 관리")
 
 
 @app.command()
@@ -75,7 +75,7 @@ def _ensure_postgres_db(db_name="keycloak", db_user="keycloak", env_password_key
 
     # 2. DB 존재 여부 확인
     check_db_cmd = [
-        "docker", "exec", "ai4infra-postgres",
+        "docker", "exec", "ai4radmed-postgres",
         "psql", "-U", "postgres", "-lqt"
     ]
     try:
@@ -93,7 +93,7 @@ def _ensure_postgres_db(db_name="keycloak", db_user="keycloak", env_password_key
     
     # 3-1. User 생성 (이미 존재할 수 있음 -> 에러 무시)
     cmd_user = [
-        "docker", "exec", "ai4infra-postgres",
+        "docker", "exec", "ai4radmed-postgres",
         "psql", "-U", "postgres", "-c", f"CREATE USER {db_user} WITH PASSWORD '{pw}';"
     ]
     try:
@@ -111,7 +111,7 @@ def _ensure_postgres_db(db_name="keycloak", db_user="keycloak", env_password_key
     
     for sql in create_cmds:
         cmd = [
-            "docker", "exec", "ai4infra-postgres",
+            "docker", "exec", "ai4radmed-postgres",
             "psql", "-U", "postgres", "-c", sql
         ]
         try:
@@ -173,7 +173,7 @@ def install(
              _ensure_postgres_db(db_name=db_name, db_user="orthanc", env_password_key="ORTHANC_DB_PASSWORD")
 
         # 1) 컨테이너 중지
-        stop_container(f"ai4infra-{svc}")
+        stop_container(f"ai4radmed-{svc}")
 
         # 2) 데이터 처리
         if reset:
@@ -226,12 +226,12 @@ def install(
         else:
             check_container(svc)  # 기본 점검
 
-            # ai4infra-cli.py 내부 install() 루프 중
+            # ai4radmed-cli.py 내부 install() 루프 중
         if svc == "postgres":
             log_info("[install] PostgreSQL 1단계 설치 및 점검 완료")
 
             # 1) 컨테이너 중지
-            stop_container("ai4infra-postgres")
+            stop_container("ai4radmed-postgres")
             log_info("[install] PostgreSQL 컨테이너 중지 완료 (TLS 적용 준비)")
 
             # 2) override 파일 복사
@@ -281,7 +281,7 @@ def backup(
 
         # Cold Backup Mode
         if cold:
-            stop_container(f"ai4infra-{svc}")
+            stop_container(f"ai4radmed-{svc}")
             try:
                 backup_file = backup_data(svc)
                 if backup_file:
@@ -310,7 +310,7 @@ def restore(
     backup_file: str = typer.Argument(None, help="복원할 백업 파일 경로 (.gpg) (생략 시 최신 백업 자동 선택)")
 ):
     """
-    AI4INFRA 서비스 복원
+    AI4RADMED 서비스 복원
     - 암호화된 백업 파일(.gpg)을 복호화하여 복원합니다.
     - Postgres/Vault: 서비스가 켜진 상태에서 API/CLI로 데이터 주입
     - 기타: 서비스 중지 후 데이터 파일 덮어쓰기
@@ -358,7 +358,7 @@ def restore(
             time.sleep(5)
     else:
         log_info(f"[restore] {service}: Cold Restore 모드 (컨테이너 중지)")
-        stop_container(f"ai4infra-{service}")
+        stop_container(f"ai4radmed-{service}")
 
     # 3. 복원 실행 (backup_manager 위임)
     try:
@@ -408,12 +408,12 @@ def init_vault():
 
     # 1) Vault 컨테이너 실행 확인
     result = subprocess.run(
-        ['docker', 'ps', '--filter', 'name=ai4infra-vault', '--format', '{{.Names}}'],
+        ['docker', 'ps', '--filter', 'name=ai4radmed-vault', '--format', '{{.Names}}'],
         capture_output=True, text=True
     )
 
-    if 'ai4infra-vault' not in result.stdout:
-        log_error("[init_vault] Vault 컨테이너가 실행되지 않았습니다. 먼저 'ai4infra install vault' 실행하십시오.")
+    if 'ai4radmed-vault' not in result.stdout:
+        log_error("[init_vault] Vault 컨테이너가 실행되지 않았습니다. 먼저 'ai4radmed install vault' 실행하십시오.")
         return
 
     # 2) 초기화 안내 메시지
@@ -440,7 +440,7 @@ def init_vault():
         '-e', 'VAULT_CLIENT_CERT=/vault/certs/certificate.crt',
         '-e', 'VAULT_CLIENT_KEY=/vault/certs/private.key',
         '-e', 'VAULT_CACERT=/vault/certs/rootCA.crt',
-        'ai4infra-vault',
+        'ai4radmed-vault',
         'vault', 'operator', 'init',
         '-key-shares=5',
         '-key-threshold=3',
@@ -474,7 +474,7 @@ def init_vault():
         # print("\n--------------------------\n")
         
         print(" 다음 단계:")
-        print("   ai4infra unseal-vault")
+        print("   ai4radmed unseal-vault")
         print("-------------------------------------------------------------------\n")
 
     except subprocess.CalledProcessError as e:
@@ -498,7 +498,7 @@ def _execute_unseal_vault(interactive: bool = False):
         '-e', 'VAULT_CLIENT_CERT=/vault/certs/certificate.crt',
         '-e', 'VAULT_CLIENT_KEY=/vault/certs/private.key',
         '-e', 'VAULT_CACERT=/vault/certs/rootCA.crt',
-        'ai4infra-vault',
+        'ai4radmed-vault',
         'vault', 'status', '-format=json'
     ]
 
@@ -559,7 +559,7 @@ def _execute_unseal_vault(interactive: bool = False):
                         '-e', 'VAULT_CLIENT_CERT=/vault/certs/certificate.crt',
                         '-e', 'VAULT_CLIENT_KEY=/vault/certs/private.key',
                         '-e', 'VAULT_CACERT=/vault/certs/rootCA.crt',
-                        'ai4infra-vault',
+                        'ai4radmed-vault',
                         'vault', 'operator', 'unseal', key
                     ]
                     res = subprocess.run(cmd, capture_output=True, text=True)
@@ -599,7 +599,7 @@ def _execute_unseal_vault(interactive: bool = False):
         print("-------------------------------------------------------------------\n")
 
         print("1) Vault 컨테이너 내부로 들어가기:")
-        print("   docker exec -it ai4infra-vault /bin/sh\n")
+        print("   docker exec -it ai4radmed-vault /bin/sh\n")
 
         print("2) Vault 언실 명령 실행:")
         print("   vault operator unseal\n")
@@ -640,7 +640,7 @@ def setup_vault_base():
     base_cmd = [
         'docker', 'exec', 
         '-e', 'VAULT_ADDR=https://127.0.0.1:8200', 
-        'ai4infra-vault',
+        'ai4radmed-vault',
         'vault'
     ]
     
@@ -681,8 +681,8 @@ def setup_vault_base():
     try:
         log_info("3) Audit Device (file) 활성화 확인...")
         # 로그 파일 권한 문제 방지를 위해 먼저 파일 생성 시도 (optional)
-        subprocess.run(['docker', 'exec', 'ai4infra-vault', 'touch', '/vault/logs/audit.log'], check=False)
-        subprocess.run(['docker', 'exec', 'ai4infra-vault', 'chmod', '666', '/vault/logs/audit.log'], check=False)
+        subprocess.run(['docker', 'exec', 'ai4radmed-vault', 'touch', '/vault/logs/audit.log'], check=False)
+        subprocess.run(['docker', 'exec', 'ai4radmed-vault', 'chmod', '666', '/vault/logs/audit.log'], check=False)
 
         subprocess.run(
             base_cmd + ['audit', 'enable', 'file', 'file_path=/vault/logs/audit.log'],
@@ -758,7 +758,7 @@ def setup_cron():
     
     # 1. 설정 수집
     cron_lines = []
-    # ai4infra-cli.py 절대 경로
+    # ai4radmed-cli.py 절대 경로
     cli_path = os.path.abspath(__file__)
     # python 인터프리터 (venv) 경로
     python_path = sys.executable
@@ -776,8 +776,8 @@ def setup_cron():
             # Cron Line: {schedule} {user} {command}
             # 주의: user cron에 등록하므로 user 필드는 생략 (system cron 아님)
             # Log 리다이렉션 포함
-            cmd = f"{python_path} {cli_path} backup {svc} >> /var/log/ai4infra/cron_backup.log 2>&1"
-            line = f"{schedule} {cmd} # AI4INFRA-BACKUP:{svc}"
+            cmd = f"{python_path} {cli_path} backup {svc} >> /var/log/ai4radmed/cron_backup.log 2>&1"
+            line = f"{schedule} {cmd} # AI4RADMED-BACKUP:{svc}"
             cron_lines.append(line)
     
     if not cron_lines:
@@ -791,10 +791,10 @@ def setup_cron():
     except Exception:
         current_cron = ""
 
-    # 3. 기존 AI4INFRA 항목 제거 (Idempotency)
+    # 3. 기존 AI4RADMED 항목 제거 (Idempotency)
     new_cron = []
     for line in current_cron.splitlines():
-        if "# AI4INFRA-BACKUP" not in line:
+        if "# AI4RADMED-BACKUP" not in line:
             new_cron.append(line)
     
     # 4. 신규 항목 추가
@@ -819,7 +819,7 @@ def setup_cron():
             log_debug(f" [+] {l}")
             
         # 로그 파일 권한 확인 (User가 쓸 수 있도록)
-        log_dir = "/var/log/ai4infra"
+        log_dir = "/var/log/ai4radmed"
         if not os.path.exists(log_dir):
             subprocess.run(["mkdir", "-p", log_dir])
             subprocess.run(["chmod", "777", log_dir]) # 임시 (실 운영시 더 정교한 권한 필요)

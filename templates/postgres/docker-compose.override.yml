@@ -15,7 +15,7 @@ services:
 
     volumes:
       # PostgreSQL 데이터 디렉터리 (Override하지 않으면 docker-compose.yml의 설정이 유지되지만 명시적으로 적음)
-      - /opt/ai4infra/postgres/data:/var/lib/postgresql/data
+      - /opt/ai4radmed/postgres/data:/var/lib/postgresql/data
 
       # [SEC-07] mTLS Enforcement Configs
       - ./config/pg_hba.conf:/var/lib/postgresql/data/pg_hba.conf

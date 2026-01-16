@@ -11,7 +11,7 @@ local function validate()
     -- 2. Discovery URL 결정 (Hybrid Strategy)
     local discovery_url
     if provider == "keycloak" then
-        discovery_url = "http://ai4infra-keycloak:8080/realms/ai4infra/.well-known/openid-configuration"
+        discovery_url = "http://ai4radmed-keycloak:8080/realms/ai4radmed/.well-known/openid-configuration"
     else
         -- Default: Google
         discovery_url = "https://accounts.google.com/.well-known/openid-configuration"

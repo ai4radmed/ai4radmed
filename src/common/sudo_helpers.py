@@ -31,7 +31,7 @@ def sudo_exists(path: Union[str, Path]) -> bool:
     Notes
     -----
     - Permission denied 오류 없이 안전하게 존재 여부 확인
-    - /opt/ai4infra와 같은 root 소유 디렉토리에 유용
+    - /opt/ai4radmed와 같은 root 소유 디렉토리에 유용
     - os.path.exists()는 Permission denied 시 False 반환
     - Path.exists()는 Permission denied 시 PermissionError 발생
     """

@@ -17,7 +17,7 @@ os_name = platform.system()
 print(f"[setup_env] 운영체제: {os_name}")
 
 ROOT = Path.cwd()
-CUR_DIR_NAME = ROOT.name
+CUR_DIR_NAME = "ai4radmed"
 src = ROOT / '.env.example'
 dst = ROOT / '.env'
 env_file = ROOT / '_environment'

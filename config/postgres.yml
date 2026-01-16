@@ -20,7 +20,7 @@ backup:
   retention_days: 30    # Keep backups for 30 days
 
 env_vars:
-  POSTGRES_DB: "ai4infra"
+  POSTGRES_DB: "ai4radmed"
 
 compose_vars:
   PORT: 5432

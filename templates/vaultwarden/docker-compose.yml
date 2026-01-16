@@ -1,7 +1,7 @@
 services:
   vaultwarden:
     image: vaultwarden/server:1.32.0-alpine
-    container_name: ai4infra-vaultwarden
+    container_name: ai4radmed-vaultwarden
     restart: unless-stopped
 
     mem_limit: ${VAULTWARDEN_MEM_LIMIT:-256m}
@@ -11,10 +11,10 @@ services:
       - "${VAULTWARDEN_PORT:-8080}:80"
 
     networks:
-      - ai4infra
+      - ai4radmed
 
     volumes:
-      - /opt/ai4infra/vaultwarden/data:/data
+      - /opt/ai4radmed/vaultwarden/data:/data
 
     environment:
       # 설정 파일(config.yml)에서 주입된 변수들 사용
@@ -23,16 +23,16 @@ services:
       - INVITATIONS_ALLOWED=${INVITATIONS_ALLOWED:-false}
       - ROCKET_ADDRESS=0.0.0.0
       - ROCKET_PORT=80
-      
+
       # Database Connection (Postgres)
-      # ai4infra-postgres 컨테이너의 5432 포트로 접속
+      # ai4radmed-postgres 컨테이너의 5432 포트로 접속
       # 초기 설치 시 DB 생성 필요 (create database vaultwarden)
-      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@ai4infra-postgres:5432/vaultwarden}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@ai4radmed-postgres:5432/vaultwarden}
 
       # Logging
       - LOG_LEVEL=${LOG_LEVEL:-info}
 
 networks:
-  ai4infra:
+  ai4radmed:
     external: true
-    name: ai4infra
+    name: ai4radmed

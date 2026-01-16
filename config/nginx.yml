@@ -6,12 +6,12 @@
 # 아래 설정들은 시스템 정책에 의해 강제 적용됩니다.
 #
 # 1. Image Strategy
-#    - image: ai4infra/nginx:custom (Built locally)
+#    - image: ai4radmed/nginx:custom (Built locally)
 #
 # 2. Path Defaults (Hardcoded)
-#    - config: /opt/ai4infra/nginx/config
-#    - certs : /opt/ai4infra/nginx/certs
-#    - logs  : /opt/ai4infra/nginx/logs
+#    - config: /opt/ai4radmed/nginx/config
+#    - certs : /opt/ai4radmed/nginx/certs
+#    - logs  : /opt/ai4radmed/nginx/logs
 #####################################
 
 service:
@@ -24,11 +24,11 @@ env_vars:
   HTTPS_PORT: "443"
   NGINX_WORKER_PROCESSES: "auto"
   NGINX_WORKER_CONNECTIONS: "1024"
-  SERVER_NAME: "ai4infra.internal" # 내부 도메인 기본값
+  SERVER_NAME: "ai4radmed.internal" # 내부 도메인 기본값
   
   # [Security] OIDC Configuration
   OIDC_PROVIDER: "keycloak" # google or keycloak (Privacy First)
-  OIDC_CLIENT_ID: "${OIDC_CLIENT_ID:-ai4infra-client}" # Keycloak Default
+  OIDC_CLIENT_ID: "${OIDC_CLIENT_ID:-ai4radmed-client}" # Keycloak Default
   OIDC_CLIENT_SECRET: "${OIDC_CLIENT_SECRET:-change_me_in_production}"
   OIDC_COOKIE_SECRET: "${OIDC_COOKIE_SECRET:-changeme_1234567890123456}"
 

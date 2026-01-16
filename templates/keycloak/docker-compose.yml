@@ -1,7 +1,7 @@
 services:
   keycloak:
     image: quay.io/keycloak/keycloak:23.0.0
-    container_name: ai4infra-keycloak
+    container_name: ai4radmed-keycloak
     hostname: keycloak
     environment:
       KEYCLOAK_ADMIN: "${KEYCLOAK_ADMIN}"
@@ -21,30 +21,30 @@ services:
     #   - "${KEYCLOAK_PORT:-8080}:8080"
 
     networks:
-      - ai4infra-app # For Nginx to reach Keycloak
-      - ai4infra-data # For Keycloak to reach Postgres
+      - ai4radmed-app # For Nginx to reach Keycloak
+      - ai4radmed-data # For Keycloak to reach Postgres
 
     depends_on:
       - postgres
     restart: unless-stopped
 
   # Placeholder for database dependency reference
-  # (실제 Postgres 컨테이너는 ai4infra-data 넷에 이미 존재함. 
+  # (실제 Postgres 컨테이너는 ai4radmed-data 넷에 이미 존재함. 
   #  여기서는 docker-compose up 순서 보장을 위해 이름만 참조하거나 생략 가능.
   #  하지만 외부 서비스 의존성이므로 dummy removal을 권장하지만, 
   #  현재 구조상 depends_on 유지를 위해 네트워크만 맞춤)
   postgres:
     image: alpine
-    container_name: ai4infra-keycloak-db-check
+    container_name: ai4radmed-keycloak-db-check
     command: echo "Checking DB dependency..."
     networks:
-      - ai4infra-data
+      - ai4radmed-data
     restart: "no"
 
 networks:
-  ai4infra-app:
+  ai4radmed-app:
     external: true
-    name: ai4infra-app
-  ai4infra-data:
+    name: ai4radmed-app
+  ai4radmed-data:
     external: true
-    name: ai4infra-data
+    name: ai4radmed-data

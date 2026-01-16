@@ -1,12 +1,12 @@
 server {
     listen 80;
-    server_name slicer.ai4infra.internal;
+    server_name slicer.ai4radmed.internal;
 
     access_log /var/log/nginx/slicer_access.log main;
     error_log /var/log/nginx/slicer_error.log warn;
 
     location / {
-        proxy_pass http://ai4infra-slicer:8080;
+        proxy_pass http://ai4radmed-slicer:8080;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "Upgrade";

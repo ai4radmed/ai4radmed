@@ -1,19 +1,19 @@
 services:
   nmopti:
     image: slicer/slicer-base:5.6.2
-    container_name: ai4infra-nmopti
+    container_name: ai4radmed-nmopti
     command: tail -f /dev/null
     deploy:
       resources:
         limits:
           memory: 4G
     volumes:
-      - /home/ben/projects/ai4infra/extensions/nmopti:/app
+      - /home/ben/projects/ai4radmed/extensions/nmopti:/app
     networks:
-      - ai4infra
+      - ai4radmed
     restart: unless-stopped
 
 networks:
-  ai4infra:
+  ai4radmed:
     external: true
-    name: ai4infra
+    name: ai4radmed

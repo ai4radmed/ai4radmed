@@ -4,12 +4,12 @@ services:
   # 1. Elasticsearch
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:${ELASTIC_VERSION:-7.17.13}
-    container_name: ai4infra-elasticsearch
+    container_name: ai4radmed-elasticsearch
     restart: unless-stopped
 
     environment:
-      - node.name=ai4infra-es01
-      - cluster.name=${CLUSTER_NAME:-ai4infra-cluster}
+      - node.name=ai4radmed-es01
+      - cluster.name=${CLUSTER_NAME:-ai4radmed-cluster}
       - discovery.type=single-node
       - bootstrap.memory_lock=true
       - "ES_JAVA_OPTS=${ES_JAVA_OPTS:--Xms1g -Xmx1g}"
@@ -32,10 +32,10 @@ services:
       - "${ES_PORT:-9200}:9200"
 
     networks:
-      - ai4infra
+      - ai4radmed
 
     volumes:
-      - /opt/ai4infra/elk/data/elasticsearch:/usr/share/elasticsearch/data
+      - /opt/ai4radmed/elk/data/elasticsearch:/usr/share/elasticsearch/data
 
     healthcheck:
       test: [ "CMD-SHELL", "curl -s http://localhost:9200 >/dev/null || exit 1" ]
@@ -46,7 +46,7 @@ services:
   # 2. Kibana
   kibana:
     image: docker.elastic.co/kibana/kibana:${ELASTIC_VERSION:-7.17.13}
-    container_name: ai4infra-kibana
+    container_name: ai4radmed-kibana
     restart: unless-stopped
 
     logging:
@@ -56,8 +56,8 @@ services:
         max-file: "3"
 
     environment:
-      - SERVER_NAME=ai4infra-kibana
-      - ELASTICSEARCH_HOSTS=http://ai4infra-elasticsearch:9200
+      - SERVER_NAME=ai4radmed-kibana
+      - ELASTICSEARCH_HOSTS=http://ai4radmed-elasticsearch:9200
       # - ELASTICSEARCH_USERNAME=kibana_system
       # - ELASTICSEARCH_PASSWORD=${KIBANA_PASSWORD}
 
@@ -68,7 +68,7 @@ services:
     #   - "${KIBANA_PORT:-5601}:5601"
 
     networks:
-      - ai4infra
+      - ai4radmed
 
     depends_on:
       elasticsearch:
@@ -77,7 +77,7 @@ services:
   # 3. Logstash
   logstash:
     image: docker.elastic.co/logstash/logstash:${ELASTIC_VERSION:-7.17.13}
-    container_name: ai4infra-logstash
+    container_name: ai4radmed-logstash
     logging:
       driver: "json-file"
       options:
@@ -93,7 +93,7 @@ services:
     environment:
       LS_JAVA_OPTS: "-Xmx256m -Xms256m"
     networks:
-      - ai4infra
+      - ai4radmed
     depends_on:
       elasticsearch:
         condition: service_healthy

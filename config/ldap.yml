@@ -9,5 +9,5 @@ path:
 
 env_vars:
   LDAP_ORGANISATION: "AI4Infra Hospital"
-  LDAP_DOMAIN: "ai4infra.internal"
+  LDAP_DOMAIN: "ai4radmed.internal"
   LDAP_ADMIN_PASSWORD: "${LDAP_ADMIN_PASSWORD}" # injected from .env

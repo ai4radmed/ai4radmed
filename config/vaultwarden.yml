@@ -8,7 +8,7 @@ backup:
 
 env_vars:
   # General Settings
-  DOMAIN: "https://vaultwarden.ai4infra.internal"
+  DOMAIN: "https://vaultwarden.ai4radmed.internal"
   SIGNUPS_ALLOWED: "true"   # 초기 구성 후 false로 변경 권장
   INVITATIONS_ALLOWED: "true"
   
@@ -20,11 +20,11 @@ env_vars:
   # 템플릿: postgresql://<user>:<password>@<host>:<port>/<database>
   # 주의: 비밀번호는 여기 적지 않고 install 시점에 주입하거나 .env.local 사용 권장
   # 하지만 편의상 기본값 명시 (운영 시 변경 필요)
-  # DATABASE_URL: "postgresql://postgres:postgres@ai4infra-postgres:5432/vaultwarden"
+  # DATABASE_URL: "postgresql://postgres:postgres@ai4radmed-postgres:5432/vaultwarden"
 
 compose_vars:
   VAULTWARDEN_MEM_LIMIT: "256m"
   VAULTWARDEN_PORT: "8080" # Host Port (Direct Access 용, 보통은 Nginx만 사용)
-  DOMAIN: "https://vaultwarden.ai4infra.internal"
+  DOMAIN: "https://vaultwarden.ai4radmed.internal"
   SIGNUPS_ALLOWED: "true"
   ADMIN_TOKEN: "admin_token_change_me" # .env로 이동 권장

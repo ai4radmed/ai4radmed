@@ -23,7 +23,7 @@ filebeat.autodiscover:
                     process_array: false
                     max_depth: 1
                     add_error_key: false
-      # ai4infra 관련 컨테이너만 수집하거나 전체 수집 (여기서는 전체)
+      # ai4radmed 관련 컨테이너만 수집하거나 전체 수집 (여기서는 전체)
 
 # 2. Host Logs (Python Scripts, etc.)
 filebeat.inputs:

@@ -1,6 +1,6 @@
 #!/bin/bash
 # C-FIND Query: 환자 ID로 Study 검색
-# Usage: docker exec ai4infra-dicom-tools /examples/02_query_patient.sh <PATIENT_ID>
+# Usage: docker exec ai4radmed-dicom-tools /examples/02_query_patient.sh <PATIENT_ID>
 
 set -e
 
@@ -11,7 +11,7 @@ echo "=== Querying Mock PACS for Patient: $PATIENT_ID ==="
 findscu -v \
   -aet CLIENT \
   -aec MOCK_PACS \
-  ai4infra-orthanc-mock 4242 \
+  ai4radmed-orthanc-mock 4242 \
   -k QueryRetrieveLevel=STUDY \
   -k PatientID="$PATIENT_ID" \
   -k PatientName \

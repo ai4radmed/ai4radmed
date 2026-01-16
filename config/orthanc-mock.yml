@@ -19,7 +19,7 @@ entry_vars:
   # Database (Postgres)
   ORTHANC__POSTGRESQL__ENABLE_INDEX: "true"
   ORTHANC__POSTGRESQL__ENABLE_STORAGE: "false" # Use Disk for large files
-  ORTHANC__POSTGRESQL__HOST: "ai4infra-postgres"
+  ORTHANC__POSTGRESQL__HOST: "ai4radmed-postgres"
   ORTHANC__POSTGRESQL__PORT: "5432"
   ORTHANC__POSTGRESQL__DATABASE: "orthanc_mock"
   ORTHANC__POSTGRESQL__USERNAME: "orthanc"

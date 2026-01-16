@@ -4,7 +4,7 @@
 
 TARGET_PATH=${1:-"/workspace/data"}
 DEST_AE=${2:-"RAW_PACS"}
-DEST_HOST="ai4infra-orthanc-$(echo $DEST_AE | tr '[:upper:]' '[:lower:]' | cut -d'_' -f1)"
+DEST_HOST="ai4radmed-orthanc-$(echo $DEST_AE | tr '[:upper:]' '[:lower:]' | cut -d'_' -f1)"
 
 echo "=== Store DICOM to PACS (storescu) ==="
 

@@ -7,9 +7,9 @@
 #### 1. **절대 경로 하드코딩 (PostgreSQL)**
 ```yaml
 volumes:
-  - ${PG_DATA_DIR:-/opt/ai4infra/postgresql/data}:/var/lib/postgresql/data
+  - ${PG_DATA_DIR:-/opt/ai4radmed/postgresql/data}:/var/lib/postgresql/data
 ```
-**문제**: `/opt/ai4infra/` 경로가 Windows에 존재하지 않음
+**문제**: `/opt/ai4radmed/` 경로가 Windows에 존재하지 않음
 
 #### 2. **Linux 시스템 디렉터리 마운트 (Vault, ELK)**
 ```yaml
@@ -45,7 +45,7 @@ templates/postgres/
 services:
   postgres:
     volumes:
-      - ${PG_DATA_DIR:-/opt/ai4infra/postgresql/data}:/var/lib/postgresql/data
+      - ${PG_DATA_DIR:-/opt/ai4radmed/postgresql/data}:/var/lib/postgresql/data
       - /etc/localtime:/etc/localtime:ro
       - /usr/share/zoneinfo:/usr/share/zoneinfo:ro
 
@@ -63,7 +63,7 @@ services:
 services:
   postgres:
     volumes:
-      - ${PG_DATA_DIR:-C:/ProgramData/ai4infra/postgresql/data}:/var/lib/postgresql/data
+      - ${PG_DATA_DIR:-C:/ProgramData/ai4radmed/postgresql/data}:/var/lib/postgresql/data
       # Windows는 시간대를 환경변수로 처리
     environment:
       - TZ=Asia/Seoul

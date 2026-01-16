@@ -1,7 +1,7 @@
 services:
   slicer:
     image: slicer/slicer-base:5.6
-    container_name: ai4infra-slicer
+    container_name: ai4radmed-slicer
     ports:
       - "${SLICER_PORT}:8080"
     command: tail -f /dev/null
@@ -13,9 +13,9 @@ services:
           memory: ${SLICER_MEM_LIMIT}
     restart: unless-stopped
     networks:
-      - ai4infra
+      - ai4radmed
 
 networks:
-  ai4infra:
+  ai4radmed:
     external: true
-    name: ai4infra
+    name: ai4radmed

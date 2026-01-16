@@ -1,7 +1,7 @@
 services:
   postgres:
     image: postgres:16.3-alpine
-    container_name: ai4infra-postgres
+    container_name: ai4radmed-postgres
     restart: unless-stopped
 
     mem_limit: 640m
@@ -23,15 +23,15 @@ services:
         max-file: "3"
 
     networks:
-      - ai4infra-data
+      - ai4radmed-data
 
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-postgres}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-ai4infra123!}
-      - POSTGRES_DB=${POSTGRES_DB:-ai4infra}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-ai4radmed123!}
+      - POSTGRES_DB=${POSTGRES_DB:-ai4radmed}
 
     volumes:
-      - ${DATA_DIR:-/opt/ai4infra/postgres/data}:/var/lib/postgresql/data
+      - ${DATA_DIR:-/opt/ai4radmed/postgres/data}:/var/lib/postgresql/data
 
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U postgres" ]
@@ -40,6 +40,6 @@ services:
       retries: 10
 
 networks:
-  ai4infra-data:
+  ai4radmed-data:
     external: true
-    name: ai4infra-data
+    name: ai4radmed-data

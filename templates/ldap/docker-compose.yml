@@ -1,7 +1,7 @@
 services:
   ldap:
     image: osixia/openldap:1.5.0
-    container_name: ai4infra-ldap
+    container_name: ai4radmed-ldap
     hostname: ldap
     environment:
       LDAP_ORGANISATION: "${LDAP_ORGANISATION}"
@@ -19,13 +19,13 @@ services:
       - "${LDAP_PORT:-389}:389"
       - "${LDAP_SSL_PORT:-636}:636"
     networks:
-      - ai4infra
+      - ai4radmed
     command: --copy-service
     restart: unless-stopped
 
   phpldapadmin:
     image: osixia/phpldapadmin:0.9.0
-    container_name: ai4infra-ldap-admin
+    container_name: ai4radmed-ldap-admin
     hostname: ldap-admin
     environment:
       PHPLDAPADMIN_LDAP_HOSTS: "ldap"
@@ -33,12 +33,12 @@ services:
     ports:
       - "${LDAP_ADMIN_PORT:-8081}:80"
     networks:
-      - ai4infra
+      - ai4radmed
     depends_on:
       - ldap
     restart: unless-stopped
 
 networks:
-  ai4infra:
+  ai4radmed:
     external: true
-    name: ai4infra
+    name: ai4radmed

@@ -1,7 +1,7 @@
 service:
   enable: ${ELK_ENABLED}
 
-# Convention: Data path is hardcoded in docker-compose.yml (/opt/ai4infra/elk/data)
+# Convention: Data path is hardcoded in docker-compose.yml (/opt/ai4radmed/elk/data)
 
 backup:
   schedule: "0 3 * * *" # Daily 03:00 (Snapshot repo backup logic needed later)
@@ -10,7 +10,7 @@ backup:
 env_vars:
   # Elasticsearch Settings
   ELASTIC_VERSION: "7.17.13" # Stable version (8.x requires more config for security)
-  CLUSTER_NAME: "ai4infra-cluster"
+  CLUSTER_NAME: "ai4radmed-cluster"
   
   # Security (Elastic Built-in Security)
   # true로 설정 시 ID/PW 로그인 필요 (elastic / changeme)
@@ -28,8 +28,8 @@ compose_vars:
   ES_PORT: "9200"
   KIBANA_PORT: "5601"
   ELASTIC_VERSION: "8.11.1"
-  CLUSTER_NAME: "ai4infra-cluster"
+  CLUSTER_NAME: "ai4radmed-cluster"
   ELASTIC_SECURITY_ENABLED: "false"
   KIBANA_PASSWORD: "changeme"
   LOGSTASH_PORT: "5044"
-  LOG_PATH: "/var/log/ai4infra"
+  LOG_PATH: "/var/log/ai4radmed"

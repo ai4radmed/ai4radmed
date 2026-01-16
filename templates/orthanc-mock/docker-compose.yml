@@ -1,7 +1,7 @@
 services:
   orthanc:
     image: jodogne/orthanc-plugins:1.12.1
-    container_name: ai4infra-orthanc-mock
+    container_name: ai4radmed-orthanc-mock
     restart: unless-stopped
     env_file: [ .env ]
 
@@ -28,9 +28,9 @@ services:
         max-file: "3"
 
     networks:
-      - ai4infra
+      - ai4radmed
 
 networks:
-  ai4infra:
+  ai4radmed:
     external: true
-    name: ai4infra
+    name: ai4radmed

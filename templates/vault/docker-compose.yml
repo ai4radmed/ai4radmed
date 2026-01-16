@@ -1,7 +1,7 @@
 services:
   vault:
     image: hashicorp/vault:1.20.4
-    container_name: ai4infra-vault
+    container_name: ai4radmed-vault
     restart: unless-stopped
 
     cap_add:
@@ -19,22 +19,22 @@ services:
     # ports:
     #   - "${PORT:-8200}:8200"
     networks:
-      - ai4infra-data
+      - ai4radmed-data
 
     environment:
       VAULT_ADDR: ${VAULT_ADDR}
       VAULT_API_ADDR: ${VAULT_API_ADDR}
 
     volumes:
-      - ${DATA_DIR:-/opt/ai4infra/vault/file}:/vault/file
-      - ${CERTS_DIR:-/opt/ai4infra/vault/certs}:/vault/certs
-      - ${CONF_DIR:-/opt/ai4infra/vault/config}:/vault/config
+      - ${DATA_DIR:-/opt/ai4radmed/vault/file}:/vault/file
+      - ${CERTS_DIR:-/opt/ai4radmed/vault/certs}:/vault/certs
+      - ${CONF_DIR:-/opt/ai4radmed/vault/config}:/vault/config
       - ${USB_DIR:-/mnt/usb}:/mnt/usb:ro # [SEC-06] Auto-Unseal Simulation
 
     # [SEC-09] Removed mutable 'cp' commands. Config uses mounted paths directly.
     command: vault server -config=/vault/config/vault.hcl
 
 networks:
-  ai4infra-data:
+  ai4radmed-data:
     external: true
-    name: ai4infra-data
+    name: ai4radmed-data

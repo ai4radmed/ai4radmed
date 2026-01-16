@@ -3,11 +3,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: ai4infra-dcmtk:${DCMTK_VERSION:-3.6.7}
-    container_name: ai4infra-dcmtk
+    image: ai4radmed-dcmtk:${DCMTK_VERSION:-3.6.7}
+    container_name: ai4radmed-dcmtk
     hostname: dcmtk
     networks:
-      - ai4infra
+      - ai4radmed
     volumes:
       # 응용 서비스에서 스크립트를 마운트할 수 있는 작업 공간
       - ${WORKSPACE_PATH:-./workspace}:/workspace
@@ -18,6 +18,6 @@ services:
     command: tail -f /dev/null
 
 networks:
-  ai4infra:
+  ai4radmed:
     external: true
-    name: ai4infra
+    name: ai4radmed

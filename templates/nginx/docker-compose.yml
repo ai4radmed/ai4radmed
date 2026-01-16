@@ -1,8 +1,8 @@
 services:
   nginx:
     build: .
-    image: ai4infra/nginx:custom
-    container_name: ai4infra-nginx
+    image: ai4radmed/nginx:custom
+    container_name: ai4radmed-nginx
     restart: unless-stopped
 
     # 리소스 제한 (경량화)
@@ -38,8 +38,8 @@ services:
       # Nginx Env Directives need these to be present in container env
 
     extra_hosts:
-      - "auth.ai4infra.internal:127.0.0.1"
-      - "ai4infra.internal:127.0.0.1"
+      - "auth.ai4radmed.internal:127.0.0.1"
+      - "ai4radmed.internal:127.0.0.1"
 
     # [Security] Immutable Infrastructure (Read-Only)
     read_only: true
@@ -49,26 +49,26 @@ services:
       - /var/cache/nginx
 
     networks:
-      - ai4infra-public
-      - ai4infra-app
-      - ai4infra-data # [SEC-08] Gateway needs access to Data Tier (Vault/Postgres)
+      - ai4radmed-public
+      - ai4radmed-app
+      - ai4radmed-data # [SEC-08] Gateway needs access to Data Tier (Vault/Postgres)
 
     volumes:
       # 설정 파일 마운트 (OpenResty 경로)
-      - ${CONFIG_DIR:-/opt/ai4infra/nginx/config}/nginx.conf:/usr/local/openresty/nginx/conf/nginx.conf:ro
-      - ${CONFIG_DIR:-/opt/ai4infra/nginx/config}/proxy.conf:/usr/local/openresty/nginx/conf/proxy.conf:ro
+      - ${CONFIG_DIR:-/opt/ai4radmed/nginx/config}/nginx.conf:/usr/local/openresty/nginx/conf/nginx.conf:ro
+      - ${CONFIG_DIR:-/opt/ai4radmed/nginx/config}/proxy.conf:/usr/local/openresty/nginx/conf/proxy.conf:ro
       # [Security] WAF Configs
-      - ${CONFIG_DIR:-/opt/ai4infra/nginx/config}/modsecurity.conf:/etc/nginx/modsecurity/modsecurity.conf:ro
-      - ${CONFIG_DIR:-/opt/ai4infra/nginx/config}/main.conf:/etc/nginx/modsecurity/main.conf:ro
-      - ${CONFIG_DIR:-/opt/ai4infra/nginx/config}/conf.d:/etc/nginx/conf.d:ro
+      - ${CONFIG_DIR:-/opt/ai4radmed/nginx/config}/modsecurity.conf:/etc/nginx/modsecurity/modsecurity.conf:ro
+      - ${CONFIG_DIR:-/opt/ai4radmed/nginx/config}/main.conf:/etc/nginx/modsecurity/main.conf:ro
+      - ${CONFIG_DIR:-/opt/ai4radmed/nginx/config}/conf.d:/etc/nginx/conf.d:ro
 
       # 인증서 마운트 (모든 서비스의 인증서를 모아서 관리하거나, Gateway용 전용 인증서 사용)
       # 현재 전략: Gateway는 자신만의 wildcard 인증서를 가지거나, 각 서비스 도메인별 인증서를 가짐.
       # 초기에는 /certs 폴더 전체를 마운트하여 유연성 확보.
-      - ${CERTS_DIR:-/opt/ai4infra/nginx/certs}:/etc/nginx/certs:ro
+      - ${CERTS_DIR:-/opt/ai4radmed/nginx/certs}:/etc/nginx/certs:ro
 
       # 로그 (호스트와 공유)
-      - ${LOGS_DIR:-/opt/ai4infra/nginx/logs}:/var/log/nginx
+      - ${LOGS_DIR:-/opt/ai4radmed/nginx/logs}:/var/log/nginx
 
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:80/health" ]
@@ -77,12 +77,12 @@ services:
       retries: 3
 
 networks:
-  ai4infra-public:
+  ai4radmed-public:
     external: true
-    name: ai4infra-public
-  ai4infra-app:
+    name: ai4radmed-public
+  ai4radmed-app:
     external: true
-    name: ai4infra-app
-  ai4infra-data:
+    name: ai4radmed-app
+  ai4radmed-data:
     external: true
-    name: ai4infra-data
+    name: ai4radmed-data

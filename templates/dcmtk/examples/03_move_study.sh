@@ -1,6 +1,6 @@
 #!/bin/bash
 # C-MOVE: Study를 Mock에서 Raw로 이동
-# Usage: docker exec ai4infra-dicom-tools /examples/03_move_study.sh <STUDY_UID>
+# Usage: docker exec ai4radmed-dicom-tools /examples/03_move_study.sh <STUDY_UID>
 
 set -e
 
@@ -15,7 +15,7 @@ echo "Study UID: $STUDY_UID"
 movescu -v \
   -aet CLIENT \
   -aec MOCK_PACS \
-  ai4infra-orthanc-mock 4242 \
+  ai4radmed-orthanc-mock 4242 \
   -aem RAW_PACS \
   +P 4242 \
   -k QueryRetrieveLevel=STUDY \
