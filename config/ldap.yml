@@ -1,13 +1,10 @@
-service:
-  enable: true
-
-path:
-  directories:
-    data: "${BASE_DIR}/ldap/data"
-    config: "${BASE_DIR}/ldap/config"
-    certs: "${BASE_DIR}/ldap/certs"
+####################################
+# 파일명: config/ldap.yml
+# 목적: LDAP 컨테이너 설정
+#####################################
 
 env_vars:
-  LDAP_ORGANISATION: "AI4Infra Hospital"
-  LDAP_DOMAIN: "ai4radmed.internal"
-  LDAP_ADMIN_PASSWORD: "${LDAP_ADMIN_PASSWORD}" # injected from .env
+  LDAP_ORGANISATION: "${LDAP_ORGANISATION}"
+  LDAP_DOMAIN: "${LDAP_DOMAIN}"
+  LDAP_ADMIN_PASSWORD: "${LDAP_ADMIN_PASSWORD}"
+  LDAP_CONFIG_PASSWORD: "${LDAP_CONFIG_PASSWORD}"

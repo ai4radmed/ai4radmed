@@ -10,11 +10,14 @@ services:
       KC_DB_URL: "${KC_DB_URL}"
       KC_DB_USERNAME: "${KC_DB_USERNAME}"
       KC_DB_PASSWORD: "${KC_DB_PASSWORD}"
-      KC_HOSTNAME: "${KC_HOSTNAME}"
+      # KC_HOSTNAME: "${KC_HOSTNAME:-auth.ai4radmed.internal}" # Conflict with URL
+      KC_HOSTNAME_URL: "https://auth.ai4radmed.internal"
+      KC_HOSTNAME_ADMIN_URL: "https://auth.ai4radmed.internal"
       KC_PROXY: "edge" # Nginx handles TLS
     command: start-dev # Use start-dev for easier setup initially, switch to start in prod
     volumes:
       - ./data:/opt/keycloak/data/import
+      - ./certs:/opt/keycloak/certs # [SEC-07] mTLS for DB Connection
 
     # [SEC-08] Host Port 제거 (Nginx가 Gateway 역할)
     # ports:
@@ -26,6 +29,11 @@ services:
 
     depends_on:
       - postgres
+    healthcheck:
+      test: [ "CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8080 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && cat <&3 | grep '200 OK'" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     restart: unless-stopped
 
   # Placeholder for database dependency reference

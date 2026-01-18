@@ -1,27 +1,17 @@
 ####################################
 # 파일명: config/postgres.yml
-# 목적: PostgreSQL 컨테이너 설정 (TLS + 권한 + 경로)
-# 구조 원칙:
-#   - path.directories.* 는 항상 "폴더"
-#   - path.files.* 는 항상 "파일명"
-#   - 인증서 경로는 CERTS_DIR + 파일명으로 자동 생성
-# 변경이력
-#   - 2025-12-03: directory file 분리 (BenKorea)
-#   - 2025-11-25: path 블록으로 구조 통일 (BenKorea)
-#   - 2025-11-22: permissoin 설정 추가 (BenKorea)   
-#   - 2025-11-04: 중복 root key 제거함 (BenKorea)   
+# 목적: PostgreSQL 컨테이너 설정
 #####################################
-
-service:
-  enable: ${POSTGRES_ENABLED}
 
 backup:
   schedule: "0 3 * * *" # Daily 03:00 (Hot Backup)
   retention_days: 30    # Keep backups for 30 days
 
 env_vars:
-  POSTGRES_DB: "ai4radmed"
+  POSTGRES_DB: "${POSTGRES_DB}"
+  POSTGRES_USER: "${POSTGRES_USER}"
+  POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
 
 compose_vars:
-  PORT: 5432
+  POSTGRES_MEM_LIMIT: "640m"
   

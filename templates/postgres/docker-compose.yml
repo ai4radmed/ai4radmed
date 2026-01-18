@@ -4,7 +4,7 @@ services:
     container_name: ai4radmed-postgres
     restart: unless-stopped
 
-    mem_limit: 640m
+    mem_limit: ${POSTGRES_MEM_LIMIT:-640m}
 
     # [SEC-09] Immutable Infrastructure
     read_only: true
@@ -29,9 +29,13 @@ services:
       - POSTGRES_USER=${POSTGRES_USER:-postgres}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-ai4radmed123!}
       - POSTGRES_DB=${POSTGRES_DB:-ai4radmed}
+      - KC_DB_PASSWORD=${KC_DB_PASSWORD}
+      - KC_DB_USERNAME=${KC_DB_USERNAME}
+      - ORTHANC_DB_USERNAME=${ORTHANC_DB_USERNAME}
 
     volumes:
       - ${DATA_DIR:-/opt/ai4radmed/postgres/data}:/var/lib/postgresql/data
+      - ./init:/docker-entrypoint-initdb.d:z
 
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U postgres" ]

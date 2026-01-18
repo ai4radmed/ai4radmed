@@ -12,14 +12,15 @@ services:
       LDAP_TLS_CA_CRT_FILENAME: "ca.crt"
       LDAP_TLS_VERIFY_CLIENT: "try"
     volumes:
-      - ./data/database:/var/lib/ldap
-      - ./data/config:/etc/ldap/slapd.d
-      - ./certs:/container/service/slapd/assets/certs
-    ports:
-      - "${LDAP_PORT:-389}:389"
-      - "${LDAP_SSL_PORT:-636}:636"
+      - ./data/database:/var/lib/ldap:z
+      - ./data/config:/etc/ldap/slapd.d:z
+      - ./certs:/container/service/slapd/assets/certs:z
+      # ports:
+      # [SEC-08] Host Port 제거 (Nginx가 Gateway 역할)
+      # - "${LDAP_PORT:-389}:389"
+      # - "${LDAP_SSL_PORT:-636}:636"
     networks:
-      - ai4radmed
+      - ai4radmed-app
     command: --copy-service
     restart: unless-stopped
 
@@ -30,15 +31,16 @@ services:
     environment:
       PHPLDAPADMIN_LDAP_HOSTS: "ldap"
       PHPLDAPADMIN_HTTPS: "false"
-    ports:
-      - "${LDAP_ADMIN_PORT:-8081}:80"
+      # ports:
+      # [SEC-08] Host Port 제거 (Nginx가 Gateway 역할)
+      # - "${LDAP_ADMIN_PORT:-8081}:80"
     networks:
-      - ai4radmed
+      - ai4radmed-app
     depends_on:
       - ldap
     restart: unless-stopped
 
 networks:
-  ai4radmed:
+  ai4radmed-app:
     external: true
-    name: ai4radmed
+    name: ai4radmed-app

@@ -49,6 +49,8 @@ from utils.certs_manager import generate_root_ca_if_needed
 from utils.certs_manager import create_service_certificate
 from utils.certs_manager import apply_service_permissions
 from utils.certs_manager import install_root_ca_windows
+from common.sudo_helpers import sudo_mkdir, sudo_exists
+from common.logger import get_logger
 
 
 load_dotenv()
@@ -56,10 +58,73 @@ PROJECT_ROOT = os.getenv("PROJECT_ROOT")
 BASE_DIR = os.getenv('BASE_DIR', '/opt/ai4radmed')
 app = typer.Typer(help="AI4RADMED 서비스 관리")
 
+def ensure_base_dir():
+    """BASE_DIR가 존재하지 않으면 생성하고, 권한을 확보합니다."""
+    if os.path.exists(BASE_DIR):
+        return
+
+    log_info(f"[ensure_base_dir] 기본 디렉터리 생성: {BASE_DIR}")
+    try:
+        os.makedirs(BASE_DIR, exist_ok=True)
+    except PermissionError:
+        log_info(f"[ensure_base_dir] 권한 부족으로 sudo 생성 시도: {BASE_DIR}")
+        if not sudo_mkdir(BASE_DIR):
+            log_error(f"[ensure_base_dir] {BASE_DIR} 생성 실패")
+            raise typer.Exit(code=1)
+        
+        # 생성 후 소유권 변경 (root -> user)
+        # sudo_mkdir 내부 혹은 직후에 소유권 변경 로직이 필요함.
+        # 여기서는 sudo chown 명시적 호출
+        user = os.getenv('USER')
+        subprocess.run(['sudo', 'chown', f'{user}:{user}', BASE_DIR], check=True)
+        log_info(f"[ensure_base_dir] {BASE_DIR} 생성 및 소유권 설정 완료")
+
+
+
+
 
 @app.command()
 def generate_rootca():
     generate_root_ca_if_needed()
+
+def verify_postgres_databases(container_name: str):
+    """Postgres 내부의 데이터베이스 목록을 조회하여 출력합니다."""
+    log_info(f"[{container_name}] 생성된 데이터베이스 목록 검증:")
+    try:
+        # psql -l 명령어 실행
+        cmd = [
+            "docker", "exec", container_name,
+            "psql", "-U", "postgres", "-c", "\\l"
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        print(result.stdout)
+        log_info(f"[{container_name}] DB 목록 출력 완료")
+    except subprocess.CalledProcessError as e:
+        log_error(f"[{container_name}] DB 목록 조회 실패: {e}")
+        if e.stderr:
+            log_error(e.stderr)
+
+def check_postgres(container_name: str, max_retries: int = 60):
+    """Postgres 전용 헬스체크 + TLS 점검 + DB 목록 검증"""
+    log_info(f"[check_postgres] PostgreSQL 준비중... (최대 {max_retries}초)")
+    
+    # 1. 기본 TCP/Healthcheck
+    if not wait_for_healthcheck(container_name, max_retries):
+        log_error("[check_postgres] Healthcheck 실패")
+        return False
+
+    # 2. SQL 쿼리 점검
+    if not check_postgres_query(container_name):
+        return False
+        
+    # 3. TLS 설정 점검
+    log_info("[check_postgres] TLS 설정 점검 시작")
+    check_postgres_tls(container_name)
+
+    # 4. [New] DB 목록 검증 (초기화 스크립트 실행 여부 확인)
+    verify_postgres_databases(container_name)
+    
+    return True
 
 def _ensure_postgres_db(db_name="keycloak", db_user="keycloak", env_password_key="KEYCLOAK_DB_PASSWORD"):
     """
@@ -135,9 +200,13 @@ def install(
     service: str = typer.Argument("all", help="설치할 서비스 이름"),
     reset: bool = typer.Option(False, "--reset", help="기존 데이터/컨테이너 삭제 후 완전 재설치 (개발용)")
 ):
-    
-    # discover_services() 함수로 서비스 목록을 가져옴
-    
+    # [Init] Ensure Base Directory exists
+    ensure_base_dir()
+
+    # [Root CA] Ensure Root CA exists
+    generate_root_ca_if_needed()
+
+   
     # [Design Strategy] Core vs Add-on Separation
     # Core services must be installed in strict dependency order.
     # Add-ons can be installed afterwards.
@@ -162,6 +231,10 @@ def install(
     for svc in services:
         service_dir = f"{BASE_DIR}/{svc}"
 
+        # [Permission Fix] Ensure service directory exists or can be created
+        if not os.path.exists(service_dir):
+            os.makedirs(service_dir, exist_ok=True)
+
         # [Keycloak 전처리] DB 준비
         if svc == "keycloak":
              _ensure_postgres_db(db_name="keycloak", db_user="keycloak", env_password_key="KEYCLOAK_DB_PASSWORD")
@@ -179,6 +252,9 @@ def install(
         if reset:
             log_info(f"[install] --reset 모드: {svc} 서비스폴더 삭제진행")
             subprocess.run(["rm", "-rf", service_dir], capture_output=True, text=True)
+            if os.path.exists(service_dir):
+                log_info(f"[install] 권한 문제로 sudo 삭제 시도: {service_dir}")
+                subprocess.run(["sudo", "rm", "-rf", service_dir], check=True)
             log_info(f"[install] {service_dir} 삭제 완료")
 
         else:
@@ -188,16 +264,16 @@ def install(
         # 3) 템플릿 복사
         copy_template(svc)
 
-        # 4) 서비스별 권한 설정 (복사 직후 실행)
-        apply_service_permissions(svc)
-
-        # 5) 서비스별 인증서 생성
+        # 4) 서비스별 인증서 생성 (먼저 생성해야 권한을 적용할 수 있음)
         create_service_certificate(service=svc, san=None)
 
-        # 6) 환경파일 생성 (.env)
+        # 5) 환경파일 생성 (.env)
         env_path = generate_env(svc)
         if not env_path:
             log_info(f"[install] {svc}: .env 생성 생략")
+
+        # 6) 서비스별 권한 설정 (템플릿, 인증서, .env 모두 생성된 후 일괄 적용)
+        apply_service_permissions(svc)
 
         # 7) 컨테이너 시작
         start_container(svc)
@@ -209,8 +285,48 @@ def install(
         # 설치 후 자동 점검 단계 추가
         # -----------------------------
         if svc == "vault":
-            # [Auto-Unseal Integration] 설치 직후 언실 시도
-            _execute_unseal_vault(interactive=False)
+            # [Auto-Provisioning] Init -> Unseal -> Setup
+            import time
+            log_info("[install] Vault 구동 대기 중...")
+            time.sleep(5)  # Wait for container startup
+
+            # 1. Check Status
+            status_cmd = [
+                'docker', 'exec',
+                '-e', 'VAULT_ADDR=https://127.0.0.1:8200',
+                'ai4radmed-vault',
+                'vault', 'status', '-format=json'
+            ]
+            
+            try:
+                # Vault status returns non-zero code if sealed, so we capture output safely
+                res = subprocess.run(status_cmd, capture_output=True, text=True)
+                # If command fails completely (e.g. container down), this will raise on empty json
+                try:
+                    status_json = json.loads(res.stdout)
+                except json.JSONDecodeError:
+                    # Fallback if curl/vault binary fails
+                    status_json = {}
+
+                initialized = status_json.get("initialized", False)
+                sealed = status_json.get("sealed", True)
+
+                # 2. Init if needed
+                if not initialized:
+                     log_info("[install] Vault 초기화(Init) 진행 (첫 설치 감지)")
+                     init_vault() # Call internal CLI command function
+                
+                # 3. Unseal
+                log_info("[install] Vault 언실(Unseal) 시도")
+                _execute_unseal_vault(interactive=False)
+
+                # 4. Setup Base
+                log_info("[install] Vault 기본 구성(Setup) 적용")
+                setup_vault_base() # Call internal CLI command function
+                
+            except Exception as e:
+                log_warn(f"[install] Vault 자동 구성 중 오류 발생: {e}")
+
             check_container("vault", check_vault)
         elif svc == "postgres":
             check_container("postgres", check_postgres)
@@ -240,7 +356,7 @@ def install(
 
             if Path(override_src).exists():
                 subprocess.run(
-                    ["cp", "-a", override_src, override_dst],
+                    ["sudo", "cp", "-a", override_src, override_dst],
                     check=True
                 )
                 log_info(f"[install] TLS override 적용 완료 → {override_dst}")
@@ -493,6 +609,7 @@ def _execute_unseal_vault(interactive: bool = False):
     """
     status_cmd = [
         'docker', 'exec', 
+        '-u', '100', # [Fix] Run as 'vault' user
         '-e', 'VAULT_ADDR=https://127.0.0.1:8200',
         # [SEC-07] mTLS for CLI
         '-e', 'VAULT_CLIENT_CERT=/vault/certs/certificate.crt',
@@ -554,6 +671,7 @@ def _execute_unseal_vault(interactive: bool = False):
                     log_info(f"[unseal_vault] Key #{i+1} 입력 중...")
                     cmd = [
                         'docker', 'exec', 
+                        '-u', '100', # [Fix] Run as 'vault' user
                         '-e', 'VAULT_ADDR=https://127.0.0.1:8200',  # [Fix] TLS 인증서 IP 불일치 해결
                         # [SEC-07] mTLS for CLI
                         '-e', 'VAULT_CLIENT_CERT=/vault/certs/certificate.crt',
