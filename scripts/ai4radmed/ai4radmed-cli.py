@@ -87,45 +87,6 @@ def ensure_base_dir():
 def generate_rootca():
     generate_root_ca_if_needed()
 
-def verify_postgres_databases(container_name: str):
-    """Postgres 내부의 데이터베이스 목록을 조회하여 출력합니다."""
-    log_info(f"[{container_name}] 생성된 데이터베이스 목록 검증:")
-    try:
-        # psql -l 명령어 실행
-        cmd = [
-            "docker", "exec", container_name,
-            "psql", "-U", "postgres", "-c", "\\l"
-        ]
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-        print(result.stdout)
-        log_info(f"[{container_name}] DB 목록 출력 완료")
-    except subprocess.CalledProcessError as e:
-        log_error(f"[{container_name}] DB 목록 조회 실패: {e}")
-        if e.stderr:
-            log_error(e.stderr)
-
-def check_postgres(container_name: str, max_retries: int = 60):
-    """Postgres 전용 헬스체크 + TLS 점검 + DB 목록 검증"""
-    log_info(f"[check_postgres] PostgreSQL 준비중... (최대 {max_retries}초)")
-    
-    # 1. 기본 TCP/Healthcheck
-    if not wait_for_healthcheck(container_name, max_retries):
-        log_error("[check_postgres] Healthcheck 실패")
-        return False
-
-    # 2. SQL 쿼리 점검
-    if not check_postgres_query(container_name):
-        return False
-        
-    # 3. TLS 설정 점검
-    log_info("[check_postgres] TLS 설정 점검 시작")
-    check_postgres_tls(container_name)
-
-    # 4. [New] DB 목록 검증 (초기화 스크립트 실행 여부 확인)
-    verify_postgres_databases(container_name)
-    
-    return True
-
 def _ensure_postgres_db(db_name="keycloak", db_user="keycloak", env_password_key="KEYCLOAK_DB_PASSWORD"):
     """
     운영 중인 Postgres에 DB/User가 없으면 자동 생성.

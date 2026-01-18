@@ -2,13 +2,15 @@
 
 import subprocess
 import time
+import os
 
-from common.logger import log_info, log_error, log_warn
+from common.logger import log_info, log_error, log_warn, log_debug
 
 
 def check_postgres(service: str) -> bool:
 
-    container = f"ai4infra-{service}"
+    project_name = os.getenv("PROJECT_NAME", "ai4radmed")
+    container = f"{project_name}-{service}"
 
     # ========================================
     # 1) Docker health 확인
@@ -64,8 +66,37 @@ def check_postgres(service: str) -> bool:
         return check_postgres_tls_diagnostics(container)
 
 
+    # ========================================
+    # 4) DB 목록 검증 (초기화 스크립트 증적)
+    # ========================================
+    verify_postgres_databases(container)
+
     # TLS가 실제 "on"이면 기본 인증 파일 경로와 존재 여부는 별도 점검
     return check_postgres_tls_diagnostics(container, tls_must_be_on=True)
+
+def verify_postgres_databases(container: str):
+    """Postgres 내부의 데이터베이스 목록을 조회하여 출력합니다."""
+    log_info(f"[check_postgres] 생성된 데이터베이스 목록 검증:")
+    try:
+        cmd = [
+            "docker", "exec", container,
+            "psql", "-U", "postgres", "-c", "\\l"
+        ]
+        # [Fix] Shell expansion issue check -> Use list format usually avoids shell, but \l specific
+        # Actually psql -c \l might require string if shell=True, or careful escaping.
+        # Let's use string command with shell=True for consistency with other functions in this file.
+        
+        cmd_str = f"docker exec {container} psql -U postgres -c \"\\l\""
+        
+        result = subprocess.run(cmd_str, shell=True, capture_output=True, text=True)
+        if result.returncode == 0:
+            print(result.stdout)
+            log_info(f"[check_postgres] DB 목록 출력 완료")
+        else:
+            log_error(f"[check_postgres] DB 목록 조회 실패: {result.stderr}")
+
+    except Exception as e:
+        log_error(f"[check_postgres] DB 목록 조회 중 예외: {e}")
 
 def check_postgres_tls_diagnostics(container: str, tls_must_be_on: bool=False) -> bool:
     log_info("[TLS-DIAG] PostgreSQL TLS 진단 시작")
@@ -84,17 +115,12 @@ def check_postgres_tls_diagnostics(container: str, tls_must_be_on: bool=False) -
 
 
     # ---------------------------
-    # ② 설정파일 내부에서 SSL 항목 확인
+    # ② 설정파일 내부에서 SSL 항목 확인 (Skip)
     # ---------------------------
-    grep_ssl = subprocess.run(
-        f"docker exec {container} grep -iE '^[ ]*ssl' {cfg}",
-        shell=True, text=True, capture_output=True
-    )
-
-    if grep_ssl.returncode != 0:
-        log_error("[TLS-DIAG] postgresql.conf에서 ssl 관련 항목을 찾을 수 없습니다.")
-    else:
-        log_info(f"[TLS-DIAG] postgresql.conf 내 SSL 항목:\n{grep_ssl.stdout.strip()}")
+    # 이유: CLI Argument(-c ssl=on)로 켜는 경우 파일에는 기록되지 않으므로
+    #       파일 내용을 grep하는 것은 오탐(False Positive)을 유발함.
+    #       이미 위에서 'SHOW ssl;'로 런타임 상태를 확인했으므로 충분함.
+    log_debug("[TLS-DIAG] postgresql.conf 텍스트 점검 생략 (CLI Override 지원)")
 
 
     # ---------------------------
