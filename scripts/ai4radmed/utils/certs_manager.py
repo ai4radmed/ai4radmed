@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-파일명: scripts/ai4infra/utils/certs_manager.py
-AI4INFRA 인증서 관리 모듈 (리팩터링 버전)
+파일명: scripts/ai4radmed/utils/certs_manager.py
+ai4radmed 인증서 관리 모듈 (리팩터링 버전)
 주요 기능:
   1. Root CA 생성 및 검증
   2. 서비스별 서버 인증서 생성 (key → csr → crt)
@@ -37,10 +37,11 @@ from dotenv import load_dotenv
 from common.logger import log_info, log_warn, log_error
 from common.load_config import load_config
 from common.load_config import load_config
+from common.sudo_helpers import sudo_mkdir, sudo_exists
 
 load_dotenv()
 PROJECT_ROOT = os.getenv("PROJECT_ROOT")
-BASE_DIR = os.getenv("BASE_DIR", "/opt/ai4infra")
+BASE_DIR = os.getenv("BASE_DIR", "/opt/ai4radmed")
 CA_DIR = Path(f"{BASE_DIR}/certs/ca")
 CA_KEY = CA_DIR / "rootCA.key"
 CA_CERT = CA_DIR / "rootCA.pem"  # 전역 Root CA 인증서 (PEM)
@@ -52,7 +53,13 @@ def create_root_ca(overwrite: bool = False) -> bool:
             log_info(f"[create_root_ca] Root CA 이미 존재: {CA_CERT}")
             return True
 
-        subprocess.run(["mkdir", "-p", str(CA_DIR)], check=True)
+        if not os.path.isdir(CA_DIR):
+            if not sudo_mkdir(CA_DIR):
+                 log_error(f"[create_root_ca] 디렉토리 생성 실패: {CA_DIR}")
+                 return False
+            # CA key 생성 전 권한 확보
+            user = os.getenv('USER')
+            subprocess.run(['sudo', 'chown', '-R', f'{user}:{user}', str(CA_DIR)], check=False)
 
         log_info("[create_root_ca] Root CA private key 생성 중...")
         subprocess.run(
@@ -74,7 +81,7 @@ def create_root_ca(overwrite: bool = False) -> bool:
                 "-days",
                 "3650",
                 "-subj",
-                "/C=KR/ST=Seoul/O=AI4INFRA/CN=AI4INFRA-Root-CA",
+                "/C=KR/ST=Seoul/O=ai4radmed/CN=ai4radmed-Root-CA",
                 "-out",
                 str(CA_CERT),
             ],
@@ -136,12 +143,13 @@ def get_service_cert_paths(service: str) -> tuple[Path, Path, Path]:
 def build_default_san(service: str) -> str:
     """
     서비스 이름을 기반으로 기본 SubjectAltName 문자열을 구성
-    예) postgres → DNS:postgres,DNS:ai4infra-postgres,IP:127.0.0.1
+    예) postgres → DNS:postgres,DNS:ai4radmed-postgres,IP:127.0.0.1
     """
+    project_name = os.getenv("PROJECT_NAME", "ai4radmed")
     dns_entries = [
         service,
-        f"ai4infra-{service}",
-        f"{service}.ai4infra.internal",
+        f"{project_name}-{service}",
+        f"{service}.{project_name}.internal",
         "localhost",
     ]
     ip_entries = [
@@ -157,7 +165,13 @@ def create_service_key(service: str, key_path: Path) -> bool:
     """
     try:
         key_dir = key_path.parent
-        subprocess.run(["mkdir", "-p", str(key_dir)], check=True)
+        key_dir = key_path.parent
+        if not os.path.isdir(key_dir):
+            if not sudo_mkdir(key_dir):
+                log_error(f"[create_service_key] 디렉토리 생성 실패: {key_dir}")
+                return False
+            user = os.getenv('USER')
+            subprocess.run(['sudo', 'chown', '-R', f'{user}:{user}', str(key_dir)], check=False)
 
         subprocess.run(
             ["openssl", "genrsa", "-out", str(key_path), "4096"],
@@ -177,6 +191,7 @@ def create_service_csr(service: str, key_path: Path, csr_path: Path) -> bool:
     서비스 CSR 생성
     """
     try:
+        project_name = os.getenv("PROJECT_NAME", "ai4radmed")
         subprocess.run(
             [
                 "openssl",
@@ -187,7 +202,7 @@ def create_service_csr(service: str, key_path: Path, csr_path: Path) -> bool:
                 "-out",
                 str(csr_path),
                 "-subj",
-                f"/C=KR/ST=Seoul/O=AI4INFRA/CN={service}.ai4infra.internal",
+                f"/C=KR/ST=Seoul/O=ai4radmed/CN={service}.{project_name}.internal",
             ],
             check=True,
         )
@@ -210,7 +225,10 @@ def sign_service_cert_with_ca(
     """
     try:
         cert_dir = cert_path.parent
-        subprocess.run(["mkdir", "-p", str(cert_dir)], check=True)
+        if not os.path.exists(cert_dir):
+             sudo_mkdir(cert_dir)
+             user = os.getenv('USER')
+             subprocess.run(['sudo', 'chown', '-R', f'{user}:{user}', str(cert_dir)], check=False)
 
         with NamedTemporaryFile("w", delete=False, suffix=".cnf") as tmp:
             tmp_path = Path(tmp.name)
@@ -293,7 +311,10 @@ def deploy_root_ca_to_service(service: str, ca_src: Path) -> bool:
     """
     try:
         cert_dir = Path(BASE_DIR) / service / "certs"
-        subprocess.run(["mkdir", "-p", str(cert_dir)], check=True)
+        if not os.path.exists(cert_dir):
+             sudo_mkdir(cert_dir)
+             user = os.getenv('USER')
+             subprocess.run(['sudo', 'chown', '-R', f'{user}:{user}', str(cert_dir)], check=False)
         dst = cert_dir / "rootCA.crt"
 
         subprocess.run(
@@ -370,6 +391,27 @@ def create_service_certificate(service: str, san: str | None = None) -> bool:
         if not verify_service_cert(service, cert_path):
             return False
 
+        # [Keycloak Specific] Convert key to PKCS#8 (Der/PEM)
+        # Java/JDBC often requires PKCS#8 format for private keys
+        if service == "keycloak":
+            pk8_path = key_path.with_suffix(".pk8")
+            try:
+                subprocess.run(
+                    [
+                        "openssl", "pkcs8", "-topk8", "-inform", "PEM", "-outform", "DER",
+                        "-in", str(key_path), "-out", str(pk8_path), "-nocrypt"
+                    ],
+                    check=True
+                )
+                log_info(f"[create_service_certificate] Keycloak용 PKCS#8 키 변환 완료: {pk8_path}")
+                # Ensure permission
+                user = os.getenv('USER')
+                subprocess.run(['sudo', 'chown', f'{user}:{user}', str(pk8_path)], check=False)
+                subprocess.run(['sudo', 'chmod', '644', str(pk8_path)], check=False) # Keycloak user needs read
+            except Exception as e:
+                log_error(f"[create_service_certificate] PKCS#8 변환 실패: {e}")
+                return False
+
         # 5) rootCA 복사
         if not deploy_root_ca_to_service(service, CA_CERT):
             return False
@@ -399,6 +441,9 @@ def apply_service_permissions(service: str) -> bool:
             "postgres": (70, 70),
             "elk": (1000, 0),  # Elasticsearch (UID 1000)
             "slicer": (1000, 1000), # 3D Slicer User (UID 1000)
+            "vault": (100, 1000),   # Vault User (UID 100)
+            "keycloak": (1000, 0),  # Keycloak User (UID 1000), GID 0 (std)
+            "ldap": (911, 911),     # OpenLDAP (UID 911)
             # "vaultwarden": (1000, 1000),  # 필요시 활성화
             # "nginx": (101, 101),          # 필요시 활성화
         }
@@ -419,7 +464,11 @@ def apply_service_permissions(service: str) -> bool:
         dirs = path_cfg.get("directories", {})
 
         # 1) 주요 디렉터리 경로
-        data_dir = Path(dirs.get("data", f"{service_dir}/data"))
+        if service == "vault":
+            data_dir = Path(dirs.get("data", f"{service_dir}/file")) # [Vault Specific] Use 'file' not 'data'
+        else:
+            data_dir = Path(dirs.get("data", f"{service_dir}/data"))
+
         cert_dir = Path(dirs.get("certs", f"{service_dir}/certs"))
 
         # [Auto-Create] Data 디렉터리가 없으면 생성 (Docker 자동 생성 시 root 소유 되는 문제 방지)
@@ -435,36 +484,40 @@ def apply_service_permissions(service: str) -> bool:
 
         # 2) 서비스 루트 소유권 변경
         if service_dir.exists():
-            subprocess.run(["chown", "-R", f"{uid}:{gid}", str(service_dir)], check=False)
+            subprocess.run(["sudo", "chown", "-R", f"{uid}:{gid}", str(service_dir)], check=False)
             log_info(f"[apply_service_permissions] 소유권 변경 → {service_dir} ({uid}:{gid})")
 
         # 3) Data 디렉터리 권한 (700)
         if os.path.exists(data_dir):
-            subprocess.run(["chmod", "-R", mode_map["data"], str(data_dir)], check=False)
+
+            subprocess.run(["sudo", "chmod", "-R", mode_map["data"], str(data_dir)], check=False)
             log_info(f"[apply_service_permissions] data 권한({mode_map['data']}) 적용 → {data_dir}")
 
         # 4) Cert 디렉터리 권한
         if os.path.exists(cert_dir):
+            # [Fix] Ensure directory is accessible (755) so user can traverse
+            subprocess.run(["sudo", "chmod", "755", str(cert_dir)], check=False)
+            
             # Private Keys (600)
             key_patterns = ["*.key", "*key.pem", "*_key.pem"]
             key_paths = set()
             for pat in key_patterns:
                 for p in Path(cert_dir).rglob(pat):
                     key_paths.add(p)
-                    subprocess.run(["chmod", mode_map["key"], str(p)], check=False)
+                    subprocess.run(["sudo", "chmod", mode_map["key"], str(p)], check=False)
             
             # Certificates (644) - anything ending in crt/pem excluding keys
             cert_patterns = ["*.crt", "*.pem"]
             for pat in cert_patterns:
                 for p in Path(cert_dir).rglob(pat):
                     if p not in key_paths:
-                        subprocess.run(["chmod", mode_map["cert"], str(p)], check=False)
+                        subprocess.run(["sudo", "chmod", mode_map["cert"], str(p)], check=False)
 
             log_info(f"[apply_service_permissions] 인증서 파일 권한(Key:600, Cert:644) 정리 완료")
 
         # 5) 실행 스크립트 권한 (755)
         for script in Path(service_dir).rglob("*.sh"):
-            subprocess.run(["chmod", mode_map["script"], str(script)], check=False)
+            subprocess.run(["sudo", "chmod", mode_map["script"], str(script)], check=False)
             log_info(f"[apply_service_permissions] 스크립트 권한(755) 적용 → {script}")
 
         log_info(f"[apply_service_permissions] {service} 권한 정리 완료")
@@ -479,7 +532,7 @@ def install_root_ca_windows():
     WSL에서 생성한 Root CA를 Windows 신뢰 저장소에 설치
     - certutil -addstore "Root" rootCA.cer
     """
-    root_ca_path = Path("/opt/ai4infra/certs/ca/rootCA.pem")
+    root_ca_path = Path("/opt/ai4radmed/certs/ca/rootCA.pem")
     if not root_ca_path.exists():
         print("[ERROR] Root CA 파일이 존재하지 않습니다:", root_ca_path)
         return False
@@ -496,7 +549,7 @@ def install_root_ca_windows():
         print(f"[ERROR] USERPROFILE 경로를 가져오지 못했습니다: {e}")
         return False
 
-    target = f"{win_home}/Downloads/ai4infra-rootCA.cer"
+    target = f"{win_home}/Downloads/ai4radmed-rootCA.cer"
 
     # Root CA를 Windows로 복사
     subprocess.run(["cp", str(root_ca_path), f"/mnt/c{target[2:]}"], check=True)

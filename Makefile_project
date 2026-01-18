@@ -63,6 +63,9 @@ init-vault:
 unseal-vault:
 	$(PYTHON) scripts/ai4radmed/ai4radmed-cli.py unseal-vault
 
+check-vault: ## Check Vault Status (Sealed/Unsealed)
+	@docker exec ai4radmed-vault vault status -address=https://127.0.0.1:8200 -tls-skip-verify || echo "Vault is Sealed or Down"
+
 backup-vault:
 	$(PYTHON) scripts/ai4radmed/ai4radmed-cli.py backup vault
 
@@ -113,6 +116,9 @@ install-slicer--reset:
 
 install-all:
 	$(PYTHON) scripts/ai4radmed/ai4radmed-cli.py install all
+
+install-all--reset:
+	$(PYTHON) scripts/ai4radmed/ai4radmed-cli.py install all --reset
 
 # --- Testing ---
 test: ## Run automated tests and generate report

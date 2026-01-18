@@ -3,42 +3,72 @@ services:
     image: osixia/openldap:1.5.0
     container_name: ai4radmed-ldap
     hostname: ldap
+    restart: unless-stopped
+
+    # Resource Limits
+    mem_limit: ${LDAP_MEM_LIMIT:-256m}
+
+    # [SEC-09] Immutable Infrastructure via Read-Only Root FS
+    # read_only: true
+    # tmpfs:
+    #   - /run
+    #   - /tmp
+
+    networks:
+      - ai4radmed-app
+
     environment:
       LDAP_ORGANISATION: "${LDAP_ORGANISATION}"
       LDAP_DOMAIN: "${LDAP_DOMAIN}"
       LDAP_ADMIN_PASSWORD: "${LDAP_ADMIN_PASSWORD}"
-      LDAP_TLS_CRT_FILENAME: "ldap.crt"
-      LDAP_TLS_KEY_FILENAME: "ldap.key"
-      LDAP_TLS_CA_CRT_FILENAME: "ca.crt"
+      # [Refactor] Standardized filenames matching certs_manager.py
+      LDAP_TLS_CRT_FILENAME: "certificate.crt"
+      LDAP_TLS_KEY_FILENAME: "private.key"
+      LDAP_TLS_CA_CRT_FILENAME: "rootCA.crt"
       LDAP_TLS_VERIFY_CLIENT: "try"
+      CONTAINER_LOG_LEVEL: "5"
+
     volumes:
-      - ./data/database:/var/lib/ldap:z
-      - ./data/config:/etc/ldap/slapd.d:z
-      - ./certs:/container/service/slapd/assets/certs:z
-      # ports:
-      # [SEC-08] Host Port 제거 (Nginx가 Gateway 역할)
-      # - "${LDAP_PORT:-389}:389"
-      # - "${LDAP_SSL_PORT:-636}:636"
-    networks:
-      - ai4radmed-app
-    command: --copy-service
-    restart: unless-stopped
+      - ${DATA_DIR:-/opt/ai4radmed/ldap/database}:/var/lib/ldap:z
+      - ${CONF_DIR:-/opt/ai4radmed/ldap/config}:/etc/ldap/slapd.d:z
+      - ${CERTS_DIR:-/opt/ai4radmed/ldap/certs}:/container/service/slapd/assets/certs:z
+
+    healthcheck:
+      test: [ "CMD", "ldapsearch", "-x", "-H", "ldap://localhost", "-b", "", "-s", "base", "(objectclass=*)", "namingContexts" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   phpldapadmin:
     image: osixia/phpldapadmin:0.9.0
     container_name: ai4radmed-ldap-admin
     hostname: ldap-admin
+    restart: unless-stopped
+
+    # Resource Limits
+    mem_limit: ${LDAP_ADMIN_MEM_LIMIT:-128m}
+
+    # [SEC-09] Immutable Infrastructure via Read-Only Root FS
+    # read_only: true
+    # tmpfs:
+    #   - /run
+    #   - /tmp
+
+    networks:
+      - ai4radmed-app
+
     environment:
       PHPLDAPADMIN_LDAP_HOSTS: "ldap"
       PHPLDAPADMIN_HTTPS: "false"
-      # ports:
-      # [SEC-08] Host Port 제거 (Nginx가 Gateway 역할)
-      # - "${LDAP_ADMIN_PORT:-8081}:80"
-    networks:
-      - ai4radmed-app
+
+    healthcheck:
+      test: [ "CMD-SHELL", "php -r \"if(@fsockopen('localhost', 80)) exit(0); exit(1);\"" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
     depends_on:
       - ldap
-    restart: unless-stopped
 
 networks:
   ai4radmed-app:

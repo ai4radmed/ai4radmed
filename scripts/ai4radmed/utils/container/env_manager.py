@@ -102,7 +102,10 @@ def generate_env(service: str) -> str:
     # 2) 필수 경로 변수 자동 주입 (System Standard)
     # YAML의 path 설정과 관계없이 표준 경로를 강제하여 복잡도 제거
     service_home = f"{BASE_DIR}/{service}"
-    merged["DATA_DIR"] = f"{service_home}/data"
+    if service == "vault":
+        merged["DATA_DIR"] = f"{service_home}/file" # [Vault Standard] Use 'file' backend path
+    else:
+        merged["DATA_DIR"] = f"{service_home}/data"
     merged["CONF_DIR"] = f"{service_home}/config"
     merged["CERTS_DIR"] = f"{service_home}/certs"
 
@@ -128,7 +131,7 @@ def generate_env(service: str) -> str:
     # 6) 파일 이동 및 권한
     try:
         subprocess.run(
-            ["mv", tmp_path, str(output_file)],
+            ["sudo", "mv", tmp_path, str(output_file)],
             check=True, capture_output=True, text=True
         )
 
@@ -136,7 +139,7 @@ def generate_env(service: str) -> str:
         # subprocess.run(["chown", root...]) -> Skip (User owned)
         
         subprocess.run(
-            ["chmod", "600", str(output_file)],
+            ["sudo", "chmod", "600", str(output_file)],
             check=True, capture_output=True, text=True
         )
 

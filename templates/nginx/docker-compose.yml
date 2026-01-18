@@ -52,6 +52,7 @@ services:
       - ai4radmed-public
       - ai4radmed-app
       - ai4radmed-data # [SEC-08] Gateway needs access to Data Tier (Vault/Postgres)
+      - ai4radmed # [Fix] Access to LDAP/Keycloak (Legacy Network)
 
     volumes:
       # 설정 파일 마운트 (OpenResty 경로)
@@ -86,3 +87,6 @@ networks:
   ai4radmed-data:
     external: true
     name: ai4radmed-data
+  ai4radmed:
+    external: true
+    name: ai4radmed

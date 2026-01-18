@@ -7,7 +7,7 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(_
 load_dotenv(os.path.join(PROJECT_ROOT, ".env"))
 
 KEYCLOAK_URL = "http://localhost:8484" # Mapped port
-REALM = "ai4infra"
+REALM = "ai4radmed"
 
 def test_keycloak_health():
     """

@@ -10,10 +10,10 @@ load_dotenv(os.path.join(PROJECT_ROOT, ".env"))
 # Using mapped host port
 KEYCLOAK_URL = "http://localhost:8484"
 ADMIN_ENDPOINT = "https://localhost/admin" # Bypass DNS
-REALM = "ai4infra"
+REALM = "ai4radmed"
 CLIENT_ID = "nginx"
-APP_URL = "https://ai4infra.internal"
-HOST_HEADER = "ai4infra.internal"
+APP_URL = "https://ai4radmed.internal"
+HOST_HEADER = "ai4radmed.internal"
 
 # Credentials
 ADMIN_USER = "testuser"

@@ -1,5 +1,4 @@
 service:
-  enable: ${SLICER_ENABLED}
   description: "3D Slicer - Medical Image Informatics Platform"
 
 # Environment Variables for Container

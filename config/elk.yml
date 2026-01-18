@@ -1,5 +1,4 @@
 service:
-  enable: ${ELK_ENABLED}
 
 # Convention: Data path is hardcoded in docker-compose.yml (/opt/ai4radmed/elk/data)
 

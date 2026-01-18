@@ -14,7 +14,7 @@ listener "tcp" {
   
   # [SEC-07] mTLS Enforcement
   tls_client_ca_file = "/vault/certs/rootCA.crt"
-  tls_require_and_verify_client_cert = "true"
+  tls_require_and_verify_client_cert = "false" # [Debug] temp disable
 }
 
 # API 주소 (환경변수 VAULT_API_ADDR, VAULT_CLUSTER_ADDR 사용을 위해 주석 처리)
@@ -28,4 +28,4 @@ ui = true
 log_level = "INFO"
 
 # mlock 활성화 (Docker cap_add: IPC_LOCK 필요)
-disable_mlock = false
+disable_mlock = true

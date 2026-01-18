@@ -236,6 +236,11 @@ def install(
         # 6) 서비스별 권한 설정 (템플릿, 인증서, .env 모두 생성된 후 일괄 적용)
         apply_service_permissions(svc)
 
+        # 6-1) [Nginx Specific] Reset 시 인증서 복구 (collect_certs)
+        if svc == "nginx":
+            from utils.container.nginx_manager import collect_certs_from_all_services
+            collect_certs_from_all_services()
+
         # 7) 컨테이너 시작
         start_container(svc)
 

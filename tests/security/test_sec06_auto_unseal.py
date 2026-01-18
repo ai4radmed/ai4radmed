@@ -3,7 +3,7 @@ import subprocess
 import os
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-SCRIPT_PATH = os.path.join(PROJECT_ROOT, "scripts/ai4infra/auto_unseal.py")
+SCRIPT_PATH = os.path.join(PROJECT_ROOT, "scripts/ai4radmed/auto_unseal.py")
 VENV_PYTHON = os.path.join(PROJECT_ROOT, ".venv/bin/python")
 
 def test_auto_unseal_script_execution():

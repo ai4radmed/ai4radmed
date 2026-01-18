@@ -7,9 +7,11 @@ env_vars:
   KEYCLOAK_ADMIN: "${KEYCLOAK_ADMIN}"
   KEYCLOAK_ADMIN_PASSWORD: "${KEYCLOAK_ADMIN_PASSWORD}" # injected from .env
   KC_DB: "postgres"
-  # KC_DB_URL is injected from .env (Security Policy)
   KC_DB_URL: "${KC_DB_URL}"
   KC_DB_USERNAME: "${KC_DB_USERNAME}"
-  KC_DB_PASSWORD: "${KEYCLOAK_DB_PASSWORD}" # injected from .env
+  KC_DB_PASSWORD: "${KC_DB_PASSWORD}" # injected from .env
   KC_HOSTNAME: "auth.ai4radmed.internal"
+
+compose_vars:
   KEYCLOAK_PORT: "8484" # Host port mapping (avoid 8080 collision with Vaultwarden)
+  KEYCLOAK_MEM_LIMIT: "512m"

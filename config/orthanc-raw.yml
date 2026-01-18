@@ -1,5 +1,4 @@
 service:
-  enable: ${ORTHANC_RAW_ENABLED}
 
 entry_vars:
   # Entrypoint Helpers

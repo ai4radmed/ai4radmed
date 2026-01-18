@@ -1,5 +1,4 @@
 service:
-  enable: true
 
 description: "AI4RadX NMOpti Extension (Slicer based)"
 

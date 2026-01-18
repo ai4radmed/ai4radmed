@@ -53,22 +53,26 @@ if platform != "win":
         # Pattern to look for: PS1="("'(.venv) '") ${PS1:-}"
         # We replace it with: PS1="(.venv) ${PS1:-}"
         # We search for the generic pattern that might involve the prompt variable
-        target_str = 'PS1="("\'(.venv) \'") ${PS1:-}"'
-        replacement_str = 'PS1="(.venv) ${PS1:-}"'
+        lines = content.splitlines()
+        new_lines = []
+        modified = False
         
-        # Sometimes the prompt name changes, but usually in this setup it is predictable or uses variable.
-        # Actually, let's look at the specific line we saw: PS1="("'(test_venv) '") ${PS1:-}"
-        # The prompt name depends on the folder name.
-        # A more robust regex replacement might be better, or just reading line by line.
+        for line in lines:
+            # Check for the specific buggy pattern: PS1="("...
+            # We look for 'PS1=' and the presence of nested quoting/parentheses around the prompt
+            if line.strip().startswith('PS1="(') and "(.venv)" in line:
+                print(f"[setup_venv] activate 스크립트 프롬프트 버그 수정: {line.strip()}")
+                # Replace with clean version (preserving indentation)
+                # Assuming 4 spaces indent based on standard venv
+                new_line = '    PS1="(.venv) ${PS1:-}"'
+                new_lines.append(new_line)
+                modified = True
+            else:
+                new_lines.append(line)
         
-        # Let's use string replacement for the specific observed bug pattern if the prompt name is static or constructed.
-        # In the file viewed earlier (Step 13), it was: PS1="("'(.venv) '") ${PS1:-}"
-        # This matches exactly.
-        
-        if target_str in content:
-            print("[setup_venv] activate 스크립트 프롬프트 버그 수정 (중복 괄호 제거)")
-            new_content = content.replace(target_str, replacement_str)
-            activate_script_path.write_text(new_content, encoding="utf-8")
+        if modified:
+            activate_script_path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+            print("[setup_venv] activate 스크립트 수정 완료")
 
 # requirements.txt 설치
 if REQ_PATH.is_file():

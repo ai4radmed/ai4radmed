@@ -1,5 +1,4 @@
 service:
-  enable: ${DCMTK_ENABLED}
   description: "DCMTK DICOM Tools Container"
 
 # Docker Compose Variables

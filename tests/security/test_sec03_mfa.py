@@ -7,7 +7,7 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(_
 load_dotenv(os.path.join(PROJECT_ROOT, ".env"))
 
 KEYCLOAK_URL = "http://localhost:8484" # Direct access to Keycloak (Mapped Port)
-REALM = "ai4infra"
+REALM = "ai4radmed"
 CLIENT_ID = "nginx"
 TEST_USER = "testuser"
 TEST_PASS = "testpassword"
@@ -30,7 +30,7 @@ def test_mfa_requirement():
     # params = {
     #     "client_id": CLIENT_ID,
     #     "response_type": "code",
-    #     "redirect_uri": "https://ai4infra.internal/oidc/callback",
+    #     "redirect_uri": "https://ai4radmed.internal/oidc/callback",
     #     "scope": "openid"
     # }
     # step2 = session.get(auth_endpoint, params=params, allow_redirects=True)

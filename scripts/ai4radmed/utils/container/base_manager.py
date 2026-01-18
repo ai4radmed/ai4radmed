@@ -6,6 +6,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from common.logger import log_debug, log_error, log_info
+from common.sudo_helpers import sudo_exists
 
 
 
@@ -143,7 +144,7 @@ def start_container(service: str):
     log_debug(f"[start_container] 구동시작: service_dir={service_dir}")
     log_debug(f"[start_container] compose_file={compose_file}")
 
-    if not os.path.exists(compose_file):
+    if not sudo_exists(compose_file):
         log_error(f"[start_container] {service} docker-compose.yml 없음: {compose_file}")
         return
 
@@ -154,11 +155,24 @@ def start_container(service: str):
     result = subprocess.run(cmd, capture_output=True, text=True)
     log_debug(f"[start_container] 파일 권한: {result.stdout.strip()}")
 
-    cmd = ['docker', 'compose', 'up', '-d']
-    log_debug(f"[start_container] 실행 명령: {' '.join(cmd)} (Auto-merge overrides)")
+    # [Permission Fix] Use sudo if needed and avoid cwd= if unreadable
+    # docker compose -f <full_path> up -d --remove-orphans
+    cmd = ['sudo', 'docker', 'compose', '-f', compose_file]
+
+    # [Bug Fix] Override 파일 존재 시 추가
+    override_file = f"{service_dir}/docker-compose.override.yml"
+    if sudo_exists(override_file):
+        log_debug(f"[start_container] Override 파일 감지됨: {override_file}")
+        cmd.extend(['-f', override_file])
+
+    cmd.extend(['up', '-d', '--remove-orphans'])
+    
+    log_debug(f"[start_container] 실행 명령: {' '.join(cmd)}")
     log_debug(f"[start_container] 작업 디렉터리: {service_dir}")
 
-    result = subprocess.run(cmd, cwd=service_dir, capture_output=True, text=True)
+    # Don't use cwd=service_dir because if it's 700 root, we can't chdir into it.
+    # docker compose will resolve .env relative to yaml file.
+    result = subprocess.run(cmd, capture_output=True, text=True)
     log_debug(f"[start_container] 반환코드: {result.returncode}")
 
     if result.returncode == 0:

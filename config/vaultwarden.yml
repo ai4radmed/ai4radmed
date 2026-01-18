@@ -1,5 +1,4 @@
 service:
-  enable: ${VAULTWARDEN_ENABLED}
 
 
 backup:

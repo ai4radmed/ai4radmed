@@ -3,6 +3,7 @@
 import subprocess
 import time
 import json
+import os
 
 from common.logger import log_debug, log_error, log_info, log_warn
 
@@ -20,7 +21,8 @@ VAULT_HEALTH_MAP = {
 
 def check_vault(service: str) -> bool:
     """Vault Health Check via CLI (Docker Exec) - Compatible with Network Segmentation"""
-    container = f"ai4infra-{service}"
+    project_name = os.getenv("PROJECT_NAME", "ai4radmed")
+    container = f"{project_name}-{service}"
     # url = "https://localhost:8200/v1/sys/health" # [Changed] 접근 불가
 
     success_attempt = None
@@ -30,6 +32,7 @@ def check_vault(service: str) -> bool:
     # 외부(Host)에서 curl 불가 -> 내부 CLI 사용
     cmd = [
         'docker', 'exec', 
+        '-u', '100', # [Fix] Run as 'vault' user because root lacks DAC_OVERRIDE (cap_drop: ALL)
         '-e', 'VAULT_ADDR=https://127.0.0.1:8200',
         '-e', 'VAULT_CLIENT_CERT=/vault/certs/certificate.crt',
         '-e', 'VAULT_CLIENT_KEY=/vault/certs/private.key',

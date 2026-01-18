@@ -19,7 +19,7 @@ def deploy_nginx_certs(service: str, service_dir: str):
     nginx_certs_dir = f"{BASE_DIR}/nginx/certs"
     
     # Nginx 컨테이너가 없으면 굳이 복사할 필요 없음 (혹은 미리 준비)
-    if not check_container("nginx"):
+    if not check_container("nginx", max_retries=1):
         return
 
     # Ensure folder exists
@@ -32,13 +32,13 @@ def deploy_nginx_certs(service: str, service_dir: str):
 
     if os.path.exists(src_crt) and os.path.exists(src_key):
         log_info(f"[deploy_nginx_certs] Nginx용 인증서 복사: {service}.crt/.key")
-        subprocess.run(["cp", src_crt, dst_crt], check=False)
-        subprocess.run(["cp", src_key, dst_key], check=False)
+        subprocess.run(["sudo", "cp", src_crt, dst_crt], check=False)
+        subprocess.run(["sudo", "cp", src_key, dst_key], check=False)
         
         # Nginx가 읽을 수 있도록 권한 설정 (World Readable for Cert, Key needs care)
         # Nginx 컨테이너 내부 사용자 권한 문제 방지를 위해 644로 설정 (내부 root 실행 가정시 600도 가능하나 안전하게)
-        subprocess.run(["chmod", "644", dst_crt], check=False)
-        subprocess.run(["chmod", "644", dst_key], check=False) 
+        subprocess.run(["sudo", "chmod", "644", dst_crt], check=False)
+        subprocess.run(["sudo", "chmod", "644", dst_key], check=False) 
     else:
         log_debug(f"[deploy_nginx_certs] {service} 인증서 파일이 없어 복사 생략")
 
@@ -49,10 +49,10 @@ def deploy_nginx_config(service: str):
     nginx_conf_src = f"{PROJECT_ROOT}/templates/nginx/config/conf.d/{service}.conf"
     nginx_conf_dest = f"{BASE_DIR}/nginx/config/conf.d/{service}.conf"
 
-    if os.path.exists(nginx_conf_src) and check_container("nginx"):
+    if os.path.exists(nginx_conf_src) and check_container("nginx", max_retries=1):
         log_info(f"[deploy_nginx_config] Nginx 설정 복사: {service}.conf")
         # 대상 폴더는 nginx 설치 시 생성됨
-        subprocess.run(["cp", nginx_conf_src, nginx_conf_dest], check=False)
+        subprocess.run(["sudo", "cp", nginx_conf_src, nginx_conf_dest], check=False)
         return True
     
     return False
@@ -62,9 +62,10 @@ def reload_nginx():
     Nginx 컨테이너를 재시작하여 변경 사항을 반영합니다.
     (reload 명령을 쓸 수도 있으나, 확실한 반영을 위해 restart 사용)
     """
-    if check_container("nginx"):
-        log_info(f"[reload_nginx] 설정 반영을 위해 Nginx 재시작...")
-        subprocess.run(["docker", "restart", "ai4infra-nginx"], check=False)
+    if check_container("nginx", max_retries=1):
+        container_name = f"{os.getenv('PROJECT_NAME', 'ai4radmed')}-nginx"
+        log_info(f"[reload_nginx] 설정 반영을 위해 Nginx({container_name}) 재시작...")
+        subprocess.run(["docker", "restart", container_name], check=False)
 
 def setup_nginx_for_service(service: str):
     """
@@ -88,3 +89,34 @@ def setup_nginx_for_service(service: str):
     
     if config_deployed or service == "keycloak" or service.startswith("orthanc"):
         reload_nginx()
+
+def collect_certs_from_all_services():
+    """
+    [Auto-Recovery] 모든 서비스의 인증서를 Nginx 인증서 폴더로 수집합니다.
+    
+    목적:
+        Nginx 재설치(Reset) 시 '/opt/ai4radmed/nginx/certs' 폴더가 삭제되면서
+        기존에 배포된 다른 서비스들의 인증서(keycloak.crt 등)도 함께 유실됩니다.
+        이로 인해 Nginx가 구동될 때 'File not found' 에러가 발생하는 것을 방지합니다.
+        
+    작동 원리:
+        1. 현재 활성화된 모든 서비스 목록을 스캔합니다 (discover_services).
+        2. 각 서비스의 인증서 원본(certs/certificate.crt)이 존재하는지 확인합니다.
+        3. 존재할 경우 Nginx의 certs 폴더로 다시 복사(deploy_nginx_certs)합니다.
+        
+    호출 시점:
+        - 'install nginx' 명령 실행 직전 (특히 --reset 옵션 사용 시 필수)
+    """
+    from utils.container.installer import discover_services
+    
+    services = discover_services()
+    log_info(f"[collect_certs] 감지된 모든 서비스에서 인증서 수집 중... ({len(services)}개)")
+    
+    for svc in services:
+        if svc == "nginx": continue
+        
+        service_dir = f"{BASE_DIR}/{svc}"
+        # 인증서 복사만 수행 (Nginx 컨테이너 체크는 deploy_nginx_certs 내부에서 함)
+        deploy_nginx_certs(svc, service_dir)
+    
+    log_info("[collect_certs] 인증서 수집 완료")

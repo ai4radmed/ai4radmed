@@ -45,20 +45,9 @@ def discover_services(config_dir="config") -> list:
             log_error(f"[discover_services] YAML 파싱/치환 실패: {yml_file} ({e})")
             continue
 
-        service_cfg = cfg.get("service", {})
-        enabled_val = service_cfg.get("enable", False)
-
-        # Handle boolean or string boolean ("true"/"false")
-        if isinstance(enabled_val, str):
-            enabled = enabled_val.lower() == "true"
-        else:
-            enabled = bool(enabled_val)
-
-        if enabled:
-            services.append(name)
-            seen_services.add(name)
-        else:
-            log_debug(f"[discover_services] enable=false → {name}")
+        # [Refactor] 항상 활성화 (All detected services are enabled by default)
+        services.append(name)
+        seen_services.add(name)
 
     return services
 

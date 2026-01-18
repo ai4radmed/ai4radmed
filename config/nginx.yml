@@ -15,7 +15,6 @@
 #####################################
 
 service:
-  enable: ${NGINX_ENABLED}
 
 # Nginx는 80/443 포트를 고정으로 사용하는 것이 일반적이지만,
 # 충돌 시 변경할 수 있도록 변수화합니다.
@@ -29,8 +28,8 @@ env_vars:
   # [Security] OIDC Configuration
   OIDC_PROVIDER: "keycloak" # google or keycloak (Privacy First)
   OIDC_CLIENT_ID: "${OIDC_CLIENT_ID:-ai4radmed-client}" # Keycloak Default
-  OIDC_CLIENT_SECRET: "${OIDC_CLIENT_SECRET:-change_me_in_production}"
-  OIDC_COOKIE_SECRET: "${OIDC_COOKIE_SECRET:-changeme_1234567890123456}"
+  OIDC_CLIENT_SECRET: "9f9776f7-5264-4487-a2f0-e7d69f372999"
+  OIDC_COOKIE_SECRET: "12345678901234567890123456789012"
 
 # 교육용 설정 (사용자가 직접 수정 가능)
 compose_vars:

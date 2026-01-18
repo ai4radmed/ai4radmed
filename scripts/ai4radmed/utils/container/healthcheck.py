@@ -1,17 +1,20 @@
 
 import subprocess
 import time
+import os
 from common.logger import log_info, log_warn, log_error
 
 
-def check_container(service: str, custom_check=None) -> bool:
+def check_container(service: str, custom_check=None, max_retries=120) -> bool:
     # [변경] 모든 서비스에 대해 일관된 이름 규칙 적용
-    filter_name = f"ai4infra-{service}"
+    # Prefix should match PROJECT_NAME (ai4radmed)
+    project_name = os.getenv("PROJECT_NAME", "ai4radmed")
+    filter_name = f"{project_name}-{service}"
 
     log_info(f"[check_container] 점검 시작 → {service} ({filter_name})")
 
-    # 최대 120초(초기화 대기)
-    for attempt in range(120):
+    # 최대 max_retries(초기화 대기)
+    for attempt in range(max_retries):
         ps = subprocess.run(
             f"docker ps --filter name={filter_name} --format '{{{{.Status}}}}'",
             shell=True, text=True, capture_output=True
