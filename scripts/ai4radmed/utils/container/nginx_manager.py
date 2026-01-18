@@ -18,9 +18,9 @@ def deploy_nginx_certs(service: str, service_dir: str):
     """
     nginx_certs_dir = f"{BASE_DIR}/nginx/certs"
     
-    # Nginx 컨테이너가 없으면 굳이 복사할 필요 없음 (혹은 미리 준비)
-    if not check_container("nginx", max_retries=1):
-        return
+    # Nginx 컨테이너 실행 여부와 관계없이 파일 시스템 레벨에서 복사 수행
+    # if not check_container("nginx", max_retries=1):
+    #     return
 
     # Ensure folder exists
     subprocess.run(["mkdir", "-p", nginx_certs_dir], check=False)
