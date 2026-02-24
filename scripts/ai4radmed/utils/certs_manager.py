@@ -37,7 +37,8 @@ from dotenv import load_dotenv
 from common.logger import log_info, log_warn, log_error
 from common.load_config import load_config
 from common.load_config import load_config
-from common.sudo_helpers import sudo_mkdir, sudo_exists
+from common.load_config import load_config
+from common.sudo_helpers import sudo_mkdir, sudo_exists, sudo_check_call
 
 load_dotenv()
 PROJECT_ROOT = os.getenv("PROJECT_ROOT")
@@ -155,6 +156,10 @@ def build_default_san(service: str) -> str:
     ip_entries = [
         "127.0.0.1",
     ]
+
+    # [Fix] Keycloak Alias Domain Support
+    if service == "keycloak":
+        dns_entries.append(f"auth.{project_name}.internal")
 
     san_parts = [f"DNS:{d}" for d in dns_entries] + [f"IP:{ip}" for ip in ip_entries]
     return ",".join(san_parts)
@@ -333,27 +338,18 @@ def deploy_root_ca_to_service(service: str, ca_src: Path) -> bool:
 def resolve_cert_paths(service: str) -> dict:
     """
     인증서 경로를 일원화하여 반환합니다.
+    [Updated] 2026-01-19: 보안 강화를 위해 YAML의 path 설정을 더 이상 참조하지 않고
+    고정된 경로 구조({BASE_DIR}/{service}/certs)를 사용합니다.
     """
-    cfg_path = f"{PROJECT_ROOT}/config/{service}.yml"
-
-    try:
-        path_cfg = load_config(cfg_path, section="path") or {}
-    except Exception:
-        path_cfg = {}
-
-    # directories/files 구조 읽기
-    dirs = path_cfg.get("directories", {})
-    files = path_cfg.get("files", {})
-
-    # cert_dir 결정
-    cert_dir = Path(dirs.get("certs", f"{BASE_DIR}/{service}/certs"))
-
-    # 파일명 결정 (기본값 제공)
+    # directories/files 구조 하드코딩 (Convention over Configuration)
+    cert_dir = Path(f"{BASE_DIR}/{service}/certs")
+    
+    # 파일명 결정 (기본값 고정)
     return {
-        "key": cert_dir / files.get("private_key", "private.key"),
-        "csr": cert_dir / files.get("csr", "request.csr"),
-        "crt": cert_dir / files.get("certificate", "certificate.crt"),
-        "root_ca": cert_dir / files.get("root_ca", "rootCA.crt"),
+        "key": cert_dir / "private.key",
+        "csr": cert_dir / "request.csr",
+        "crt": cert_dir / "certificate.crt",
+        "root_ca": cert_dir / "rootCA.crt",
     }
 
 def create_service_certificate(service: str, san: str | None = None) -> bool:
@@ -484,19 +480,19 @@ def apply_service_permissions(service: str) -> bool:
 
         # 2) 서비스 루트 소유권 변경
         if service_dir.exists():
-            subprocess.run(["sudo", "chown", "-R", f"{uid}:{gid}", str(service_dir)], check=False)
+            sudo_check_call(["sudo", "chown", "-R", f"{uid}:{gid}", str(service_dir)])
             log_info(f"[apply_service_permissions] 소유권 변경 → {service_dir} ({uid}:{gid})")
 
         # 3) Data 디렉터리 권한 (700)
         if os.path.exists(data_dir):
 
-            subprocess.run(["sudo", "chmod", "-R", mode_map["data"], str(data_dir)], check=False)
+            sudo_check_call(["sudo", "chmod", "-R", mode_map["data"], str(data_dir)])
             log_info(f"[apply_service_permissions] data 권한({mode_map['data']}) 적용 → {data_dir}")
 
         # 4) Cert 디렉터리 권한
         if os.path.exists(cert_dir):
             # [Fix] Ensure directory is accessible (755) so user can traverse
-            subprocess.run(["sudo", "chmod", "755", str(cert_dir)], check=False)
+            sudo_check_call(["sudo", "chmod", "755", str(cert_dir)])
             
             # Private Keys (600)
             key_patterns = ["*.key", "*key.pem", "*_key.pem"]
@@ -504,20 +500,21 @@ def apply_service_permissions(service: str) -> bool:
             for pat in key_patterns:
                 for p in Path(cert_dir).rglob(pat):
                     key_paths.add(p)
-                    subprocess.run(["sudo", "chmod", mode_map["key"], str(p)], check=False)
+                    sudo_check_call(["sudo", "chmod", mode_map["key"], str(p)])
             
             # Certificates (644) - anything ending in crt/pem excluding keys
             cert_patterns = ["*.crt", "*.pem"]
             for pat in cert_patterns:
                 for p in Path(cert_dir).rglob(pat):
                     if p not in key_paths:
-                        subprocess.run(["sudo", "chmod", mode_map["cert"], str(p)], check=False)
+                        sudo_check_call(["sudo", "chmod", mode_map["cert"], str(p)])
 
             log_info(f"[apply_service_permissions] 인증서 파일 권한(Key:600, Cert:644) 정리 완료")
 
         # 5) 실행 스크립트 권한 (755)
+        # 5) 실행 스크립트 권한 (755)
         for script in Path(service_dir).rglob("*.sh"):
-            subprocess.run(["sudo", "chmod", mode_map["script"], str(script)], check=False)
+            sudo_check_call(["sudo", "chmod", mode_map["script"], str(script)])
             log_info(f"[apply_service_permissions] 스크립트 권한(755) 적용 → {script}")
 
         log_info(f"[apply_service_permissions] {service} 권한 정리 완료")
@@ -555,27 +552,42 @@ def install_root_ca_windows():
     subprocess.run(["cp", str(root_ca_path), f"/mnt/c{target[2:]}"], check=True)
     print(f"[INFO] Root CA 복사 완료 → {target}")
 
-    # certutil로 Root CA를 신뢰 저장소에 추가
+    # certutil로 Root CA를 신뢰 저장소에 추가 (관리자 권한 필요)
     try:
-        result = subprocess.run(
-            ["cmd.exe", "/c", f'certutil -addstore "Root" "{target}"'],
-            capture_output=True,
+        print("[INFO] 관리자 권한으로 인증서 등록을 시도합니다. (Windows UAC 창이 뜨면 '예'를 눌러주세요)")
+        
+        # PowerShell Script 생성 (Quoting Hell 방지)
+        target_win = target.replace("/", "\\")
+        ps_script_content = f"""
+        Start-Process certutil -ArgumentList '-addstore "Root" "{target_win}"' -Verb RunAs -Wait
+        """
+        
+        # 임시 ps1 파일 생성 (Windows Downloads 폴더 사용)
+        # UNC 경로 문제 해결: CWD가 아닌 절대 경로가 보장된 로컬 경로에 스크립트 생성
+        ps_script_name = "install_cert.ps1"
+        ps_script_path_linux = f"/mnt/c{win_home[2:]}/Downloads/{ps_script_name}" # Linux Path
+        ps_script_path_win = f"{win_home}\\Downloads\\{ps_script_name}".replace("/", "\\") # Windows Path
+
+        with open(ps_script_path_linux, "w") as f:
+            f.write(ps_script_content)
+            
+        # cmd.exe를 통해 powershell 스크립트 실행 -> powershell.exe 직접 실행으로 변경 (Quoting Issue 해결)
+        # ExecutionPolicy Bypass 필요
+        subprocess.run(
+            ["powershell.exe", "-ExecutionPolicy", "Bypass", "-File", ps_script_path_win],
+            check=True
         )
-        stdout = result.stdout.decode("cp949", errors="ignore")
-        stderr = result.stderr.decode("cp949", errors="ignore")
+        
+        # 정리
+        if os.path.exists(ps_script_path_linux):
+            os.remove(ps_script_path_linux)
+        
+        print("[SUCCESS] 인증서 등록 명령을 보냈습니다. (성공 여부는 Windows 창에서 확인)")
+        return True
 
-        print("[INFO] certutil stdout:")
-        print(stdout)
-        print("[INFO] certutil stderr:")
-        print(stderr)
-
-        if result.returncode == 0:
-            print("[SUCCESS] Windows Trusted Root Store에 Root CA 설치 완료")
-            return True
-        else:
-            print("[ERROR] Root CA 설치 실패")
-            return False
-
+    except subprocess.CalledProcessError as e:
+        print(f"[ERROR] PowerShell(관리자 모드) 실행 실패: {e}")
+        return False
     except Exception as e:
-        print(f"[ERROR] certutil 실행 중 예외 발생: {e}")
+        print(f"[ERROR] 예외 발생: {e}")
         return False

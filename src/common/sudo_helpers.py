@@ -100,3 +100,32 @@ def sudo_find_files(directory: Union[str, Path], pattern: str) -> list[Path]:
     if result.returncode == 0:
         return [Path(p.strip()) for p in result.stdout.strip().split('\n') if p.strip()]
     return []
+
+
+def sudo_check_call(cmd: list) -> None:
+    """
+    sudo 명령을 실행하고 실패 시 예외를 발생시킵니다 (Fail Fast).
+    
+    Parameters
+    ----------
+    cmd : list
+        실행할 명령어 리스트 (예: ["sudo", "chown", ...])
+        
+    Raises
+    ------
+    subprocess.CalledProcessError
+        명령어 실행 실패 시
+        
+    Notes
+    -----
+    - check=True를 강제하여 "조용한 실패"를 방지합니다.
+    - 실패 시 로그에 명확한 한글 메시지를 남깁니다.
+    """
+    from common.logger import log_error
+    
+    try:
+        subprocess.run(cmd, check=True)
+    except subprocess.CalledProcessError as e:
+        log_error(f"[sudo_check_call] 명령 실행 실패: {' '.join(cmd)}")
+        log_error(" -> 원인: sudo 비밀번호가 입력되지 않았거나 권한이 부족합니다.")
+        raise e

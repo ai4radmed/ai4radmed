@@ -15,14 +15,14 @@ if PROJECT_ROOT not in sys.path:
 from common.logger import log_info, log_error, log_warn
 
 # Configuration
-KEYCLOAK_HOST = os.getenv("KC_HOSTNAME", "auth.ai4infra.internal")
+KEYCLOAK_HOST = os.getenv("KC_HOSTNAME", "auth.ai4radmed.internal")
 KEYCLOAK_PORT = os.getenv("KEYCLOAK_PORT", "8484")  # Host port
 KEYCLOAK_URL = f"http://localhost:{KEYCLOAK_PORT}"  # Access via localhost for setup script
 ADMIN_USER = os.getenv("KEYCLOAK_ADMIN", "admin")
 ADMIN_PASSWORD = os.getenv("KEYCLOAK_ADMIN_PASSWORD", "admin")
 
-REALM_NAME = "ai4infra"
-LDAP_HOST = "ai4infra-ldap" # Internal docker name
+REALM_NAME = "ai4radmed"
+LDAP_HOST = "ai4radmed-ldap" # Internal docker name
 LDAP_PORT = "389"
 
 def get_admin_token():
@@ -55,7 +55,7 @@ def create_realm(token):
     payload = {
         "realm": REALM_NAME,
         "enabled": True,
-        "displayName": "AI4Infra Hospital"
+        "displayName": "AI4RadMed Hospital"
     }
     
     resp = requests.post(url, json=payload, headers=headers)
@@ -65,24 +65,34 @@ def create_realm(token):
         log_error(f"Failed to create realm: {resp.text}")
 
 def configure_ldap(token):
+    # Get Realm UUID
+    realm_url = f"{KEYCLOAK_URL}/admin/realms/{REALM_NAME}"
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    resp = requests.get(realm_url, headers=headers)
+    if resp.status_code != 200:
+        log_error(f"Failed to get realm info: {resp.text}")
+        return
+    realm_id = resp.json()["id"]
+
     # Check existing storage providers
     url = f"{KEYCLOAK_URL}/admin/realms/{REALM_NAME}/components"
-    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-    params = {"parent": REALM_NAME, "type": "org.keycloak.storage.UserStorageProvider"}
+    params = {"parent": realm_id, "type": "org.keycloak.storage.UserStorageProvider"}
     
     resp = requests.get(url, headers=headers, params=params)
     existing = resp.json()
     for comp in existing:
         if comp["name"] == "openldap":
-            log_info("LDAP provider already configured.")
-            return
+            log_info("LDAP provider found. Deleting to ensure configuration update (and fix parentId)...")
+            comp_id = comp["id"]
+            requests.delete(f"{url}/{comp_id}", headers=headers)
+            break
 
     # Configure LDAP
     payload = {
         "name": "openldap",
         "providerId": "ldap",
         "providerType": "org.keycloak.storage.UserStorageProvider",
-        "parentId": REALM_NAME,
+        "parentId": realm_id,
         "config": {
             "vendor": ["other"],
             "usernameLDAPAttribute": ["uid"],
@@ -90,11 +100,11 @@ def configure_ldap(token):
             "uuidLDAPAttribute": ["entryUUID"],
             "userObjectClasses": ["inetOrgPerson, organizationalPerson"],
             "connectionUrl": [f"ldap://{LDAP_HOST}:{LDAP_PORT}"],
-            "usersDn": ["dc=ai4infra,dc=internal"],
+            "usersDn": ["dc=ai4radmed,dc=internal"],
             "authType": ["simple"],
-            "bindDn": ["cn=admin,dc=ai4infra,dc=internal"],
+            "bindDn": ["cn=admin,dc=ai4radmed,dc=internal"],
             "bindCredential": [os.getenv("LDAP_ADMIN_PASSWORD", "admin")],
-            "searchScope": ["1"], # One level
+            "searchScope": ["2"], # Subtree
             "batchSizeForSync": ["1000"],
             "fullSyncPeriod": ["86400"], # 1 day
             "changedSyncPeriod": ["300"], # 5 min (changed from -1)
@@ -106,7 +116,7 @@ def configure_ldap(token):
     
     resp = requests.post(url, json=payload, headers=headers)
     if resp.status_code == 201:
-        log_info("LDAP provider configured successfully.")
+        log_info(f"LDAP provider configured successfully (Parent ID: {realm_id}).")
     else:
         log_error(f"Failed to configure LDAP: {resp.text}")
 
@@ -118,8 +128,14 @@ def create_oidc_client(token, client_id, redirect_uris):
     resp = requests.get(url, headers=headers, params={"clientId": client_id})
     clients = resp.json()
     if clients:
-        log_info(f"Client '{client_id}' already exists.")
-        return
+        log_info(f"Client '{client_id}' already exists. Deleting to ensure configuration update...")
+        client_uuid = clients[0]["id"]
+        del_resp = requests.delete(f"{url}/{client_uuid}", headers=headers)
+        if del_resp.status_code == 204:
+             log_info(f"Client '{client_id}' deleted successfully.")
+        else:
+             log_error(f"Failed to delete client '{client_id}': {del_resp.text}")
+             return
 
     payload = {
         "clientId": client_id,
@@ -128,6 +144,8 @@ def create_oidc_client(token, client_id, redirect_uris):
         "secret": "orthanc-secret", # Fixed secret for simplicity in this demo environment
         "directAccessGrantsEnabled": True,
         "standardFlowEnabled": True, # Authorization Code Flow
+        "publicClient": False, # [SEC-04] Confidential Client
+        "serviceAccountsEnabled": True, # [SEC-04] Allow backend authentication
         "redirectUris": redirect_uris,
         "protocol": "openid-connect"
     }
@@ -162,6 +180,57 @@ def create_oidc_client(token, client_id, redirect_uris):
         log_error(f"Failed to create client '{client_id}': {resp.text}")
 
 
+
+def configure_mfa(token):
+    """
+    [SEC-03] MFA Enforcement
+    1. Set OTP Policy to TOTP
+    2. Enable CONFIGURE_TOTP required action
+    3. Set CONFIGURE_TOTP as Default Action (Enforce for new users)
+    """
+    log_info("Configuring MFA (TOTP) Policy...")
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    
+    # 1. Update Realm OTP Policy
+    realm_url = f"{KEYCLOAK_URL}/admin/realms/{REALM_NAME}"
+    payload = {
+        "otpPolicyType": "totp",
+        "otpPolicyAlgorithm": "HmacSHA1",
+        "otpPolicyDigits": 6,
+        "otpPolicyLookAheadWindow": 1,
+        "otpPolicyPeriod": 30
+    }
+    requests.put(realm_url, json=payload, headers=headers)
+    
+    # 2. Enable Required Action: CONFIGURE_TOTP
+    # First get alias/name
+    actions_url = f"{KEYCLOAK_URL}/admin/realms/{REALM_NAME}/authentication/required-actions"
+    resp = requests.get(actions_url, headers=headers)
+    actions = resp.json()
+    
+    totp_alias = "CONFIGURE_TOTP"
+    totp_action = next((a for a in actions if a["alias"] == totp_alias), None)
+    
+    if totp_action:
+        # Update to Enabled=True, DefaultAction=True
+        totp_update_url = f"{actions_url}/{totp_alias}"
+        update_payload = {
+            "alias": totp_alias,
+            "name": totp_action["name"],
+            "providerId": totp_action["providerId"],
+            "enabled": True,
+            "defaultAction": True, # [SEC-03] Enforce for all new users
+            "priority": totp_action["priority"]
+        }
+        resp = requests.put(totp_update_url, json=update_payload, headers=headers)
+        if resp.status_code == 204:
+             log_info("MFA (CONFIGURE_TOTP) set as Default Action successfully.")
+        else:
+             log_error(f"Failed to set MFA default action: {resp.text}")
+    else:
+        log_error("CONFIGURE_TOTP action not found in realm.")
+
+
 def main():
     log_info("Waiting for Keycloak to be ready...")
     # Simple wait loop
@@ -177,19 +246,23 @@ def main():
     token = get_admin_token()
     create_realm(token)
     configure_ldap(token)
+    configure_mfa(token) # [SEC-03]
     
     # PACS Client (Legacy)
-    create_oidc_client(token, "orthanc", ["http://localhost:8042/*", "https://pacs.ai4infra.internal/*"])
+    create_oidc_client(token, "orthanc", ["http://localhost:8042/*", "https://pacs.ai4radmed.internal/*"])
 
     # Nginx Gateway Client (OpenResty)
     # Redirect URI must match lua-resty-openidc default (/redirect_uri)
     gateway_redirects = [
-        "http://localhost/redirect_uri", 
-        "https://pacs.ai4infra.internal/redirect_uri",
-        "https://pacs-mock.ai4infra.internal/redirect_uri",
-        "https://pacs-raw.ai4infra.internal/redirect_uri",
-        "https://pacs-pseudo.ai4infra.internal/redirect_uri",
-        "https://*.ai4infra.internal/redirect_uri"
+        "http://localhost/redirect_uri",
+        "https://ai4radmed.internal/redirect_uri",
+        "https://vault.ai4radmed.internal/redirect_uri",
+        "https://ldap-admin.ai4radmed.internal/redirect_uri",
+        "https://pacs.ai4radmed.internal/redirect_uri",
+        "https://pacs-mock.ai4radmed.internal/redirect_uri",
+        "https://pacs-raw.ai4radmed.internal/redirect_uri",
+        "https://pacs-pseudo.ai4radmed.internal/redirect_uri",
+        "https://*.ai4radmed.internal/redirect_uri"
     ]
     create_oidc_client(token, "nginx-gateway", gateway_redirects)
 

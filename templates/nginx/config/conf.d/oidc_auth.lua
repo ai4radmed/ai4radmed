@@ -1,87 +1,89 @@
--- oidc_auth.lua (DEBUG MODE 13 - HARDCODED SECRET + SCHEME)
+-- oidc_auth.lua (DEBUG MODE 15 - COOKIE STORAGE + UNIQUE NAME)
 local openidc = require("resty.openidc")
 
 local function validate()
-    local scheme = ngx.var.scheme
-    local raw_cookie = ngx.var.http_cookie or "nil"
-    ngx.log(ngx.ERR, "[DEBUG_16] URI: " .. ngx.var.uri .. " | Cookie Header: " .. raw_cookie)
+    ngx.log(ngx.ERR, "[[ DEBUG-OIDC ]] ----------------------------------------------------------------")
+    ngx.log(ngx.ERR, "[[ DEBUG-OIDC ]] STEP 1: validate() called for URI: " .. ngx.var.uri)
     
     local client_id = os.getenv("OIDC_CLIENT_ID")
     local client_secret = os.getenv("OIDC_CLIENT_SECRET")
-    local cookie_secret = os.getenv("OIDC_COOKIE_SECRET")
-    
-    if cookie_secret then
-        ngx.log(ngx.ERR, "[DEBUG_16] Cookie Secret Length: " .. #cookie_secret)
-    else
-        ngx.log(ngx.ERR, "[DEBUG_16] Cookie Secret is NIL!")
-    end
+    local cookie_secret = os.getenv("OIDC_COOKIE_SECRET") or "v0123456789012345678901234567890"
     
     local discovery_url = "http://ai4radmed-keycloak:8080/realms/ai4radmed/.well-known/openid-configuration"
 
-        -- OIDC Configuration
-        redirect_uri = "https://vault.ai4radmed.internal/redirect_uri",
-        -- redirect_uri_path = "/redirect_uri", -- Removed to fix deprecation warning
+    -- [Fix] Dynamic Redirect URI
+    local target_scheme = ngx.var.scheme
+    if target_scheme == "http" and ngx.var.http_x_forwarded_proto == "https" then
+        target_scheme = "https"
+    end
+    
+    local redirect_uri = target_scheme .. "://" .. ngx.var.host .. "/redirect_uri"
+    ngx.log(ngx.ERR, "[[ DEBUG-OIDC ]] Redirect URI: " .. redirect_uri)
+
+    -- [DEBUG] Cookie Check
+    local cookie_header = ngx.var.http_cookie or ""
+    ngx.log(ngx.ERR, "[[ DEBUG-OIDC ]] Incoming Cookies: " .. cookie_header)
+    
+    local session_opts = {
+        secret = cookie_secret,
+        storage = "cookie", -- Use cookie storage for maximum cross-worker reliability
+        name = "ai4radmed_session", -- Specific unique name
+        cookie = {
+            path = "/",
+            secure = true, -- REQUIRED for SameSite=None
+            samesite = "None", -- Permissive for cross-subdomain redirect
+            http_only = true,
+        },
+    }
+
+    local opts = {
+        redirect_uri = redirect_uri,
         discovery = discovery_url,
         client_id = client_id,
         client_secret = client_secret,
         scope = "openid email profile",
+
+        token_endpoint = "http://ai4radmed-keycloak:8080/realms/ai4radmed/protocol/openid-connect/token",
+        userinfo_endpoint = "http://ai4radmed-keycloak:8080/realms/ai4radmed/protocol/openid-connect/userinfo",
+        jwks_uri = "http://ai4radmed-keycloak:8080/realms/ai4radmed/protocol/openid-connect/certs",
+        revocation_endpoint = "http://ai4radmed-keycloak:8080/realms/ai4radmed/protocol/openid-connect/revoke",
         
-        -- Logout Configuration
         logout_path = "/logout",
         redirect_after_logout_uri = "/",
         
-        -- OpenIDC specific options
         accept_bearer_token = true,
         iat_slack = 600,
         ssl_verify = "no",
         
-        -- [Fix] lua-resty-session v4 Configuration (FLAT)
-        cookie_name = "session",      -- MUST match lua-resty-openidc default!
-        secret = cookie_secret,
-        storage = "cookie",                -- Use Cookie for storage (Stateless)
-        
-        -- Flat Cookie Options (Required by v4 implementation)
-        cookie_secure = true,
-        cookie_http_only = true,
-        cookie_path = "/",
-        cookie_same_site = "Lax",
-        cookie_max_age = 3600,
-        
-        cipher = "aes-256-gcm",
-        audience = "ai4radmed-app",
+        -- session_contents = { id_token = true, access_token = true } 
     }
     
-    -- [Fix] Correct API Call: authenticate(opts, target_url, session_opts)
-    -- We pass nil for target_url (auto-detect) and nil for session_opts (use opts)
-    local res, err = openidc.authenticate(opts)
-
+    ngx.log(ngx.ERR, "[[ DEBUG-OIDC ]] STEP 2: authenticate...")
+    local res, err = openidc.authenticate(opts, nil, nil, session_opts)
+    
     if err then
-        ngx.log(ngx.ERR, "[DEBUG_17] authenticate ERROR: " .. (err or "unknown"))
+        ngx.log(ngx.ERR, "[[ DEBUG-OIDC ]] STEP 3 ERROR: " .. (err or "unknown"))
         ngx.status = 500
-        ngx.say(err)
+        ngx.header.content_type = "text/html"
+        ngx.say("<html><body><h1>Auth Error</h1><p>" .. (err or "unknown") .. "</p><p>Check if cookies are blocked.</p></body></html>")
         ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
     end
 
     if not res then
-         ngx.log(ngx.ERR, "[DEBUG_17] authenticate returned nil (Redirecting)")
-         -- Note: The library handles the 302 redirect here
+         ngx.log(ngx.ERR, "[[ DEBUG-OIDC ]] STEP 4: Redirecting...")
     else
-         ngx.log(ngx.ERR, "[DEBUG_17] authenticate SUCCESS!")
+         ngx.log(ngx.ERR, "[[ DEBUG-OIDC ]] STEP 5: SUCCESS! User: " .. (res.id_token and res.id_token.preferred_username or "unknown"))
+         
          if res.id_token then
-             ngx.req.set_header("X-User-Email", res.id_token.email)
-             ngx.log(ngx.ERR, "[DEBUG_17] Email: " .. (res.id_token.email or "nil"))
+             ngx.req.set_header("X-User-Email", res.id_token.email or "")
          end
+         
          if ngx.var.uri == "/redirect_uri" then
              return ngx.redirect("/")
          end
     end
 end
 
-local function has_role(role) return false end
-local function require_role(role) end
-
 return {
-    validate = validate,
-    require_role = require_role,
-    has_role = has_role
+    validate = validate
 }

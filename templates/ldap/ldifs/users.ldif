@@ -1,0 +1,93 @@
+# Root DN (Container auto-generated, removing to avoid 'Already exists' error)
+# dn: dc=ai4radmed,dc=internal
+# objectClass: top
+# objectClass: dcObject
+# objectClass: organization
+# o: ai4radmed
+# dc: ai4radmed
+
+# Structure
+dn: ou=People,dc=ai4radmed,dc=internal
+objectClass: organizationalUnit
+ou: People
+
+dn: ou=Groups,dc=ai4radmed,dc=internal
+objectClass: organizationalUnit
+ou: Groups
+
+# -------------------------------------------------------------------
+# Groups
+# -------------------------------------------------------------------
+
+dn: cn=admin,ou=Groups,dc=ai4radmed,dc=internal
+objectClass: posixGroup
+cn: admin
+gidNumber: 5000
+
+dn: cn=research,ou=Groups,dc=ai4radmed,dc=internal
+objectClass: posixGroup
+cn: research
+gidNumber: 5001
+
+# -------------------------------------------------------------------
+# Users (Project Director)
+# -------------------------------------------------------------------
+
+dn: uid=rmdirector,ou=People,dc=ai4radmed,dc=internal
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: rmdirector
+sn: 프로젝트책임자
+cn: 프로젝트책임자
+displayName: 프로젝트책임자
+userPassword: rmdirector_ldap
+gidNumber: 5001
+uidNumber: 2000
+homeDirectory: /home/rmdirector
+loginShell: /bin/bash
+mail: rmdirector@rpython.study
+title: 프로젝트 책임자
+description: Vault: breakglass / LDAP: *
+
+# -------------------------------------------------------------------
+# Users (Security Manager)
+# -------------------------------------------------------------------
+
+dn: uid=rmsecurity,ou=People,dc=ai4radmed,dc=internal
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: rmsecurity
+sn: 정보보안책임자
+cn: 정보보안책임자
+displayName: 정보보안책임자
+userPassword: rmsecurity_ldap
+gidNumber: 5000
+uidNumber: 2001
+homeDirectory: /home/rmsecurity
+loginShell: /bin/bash
+mail: rmsecurity@rpython.study
+title: 정보보안책임자
+description: Vault: root / LDAP: admin
+
+# -------------------------------------------------------------------
+# Users (Developer - You/Ben)
+# -------------------------------------------------------------------
+
+dn: uid=ben,ou=People,dc=ai4radmed,dc=internal
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: ben
+sn: 개발자
+cn: 개발자
+displayName: 개발자 (Ben)
+userPassword: ben
+gidNumber: 5000
+uidNumber: 2012
+homeDirectory: /home/ben
+loginShell: /bin/bash
+mail: ben@rpython.study
+title: 수석개발자
+description: Vault: admin / LDAP: admin

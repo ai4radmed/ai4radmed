@@ -211,7 +211,14 @@ def install(
 
         # 2) 데이터 처리
         if reset:
-            log_info(f"[install] --reset 모드: {svc} 서비스폴더 삭제진행")
+            log_info(f"[install] --reset 모드: {svc} 완전 삭제(컨테이너+데이터) 진행")
+            # 1. 컨테이너 강제 삭제 (Prevent Reuse)
+            subprocess.run(["docker", "rm", "-f", f"ai4radmed-{svc}"], capture_output=True)
+            # Admin container for LDAP
+            if svc == "ldap":
+                 subprocess.run(["docker", "rm", "-f", "ai4radmed-ldap-admin"], capture_output=True)
+            
+            # 2. 볼륨(Bind Mount) 디렉터리 삭제
             subprocess.run(["rm", "-rf", service_dir], capture_output=True, text=True)
             if os.path.exists(service_dir):
                 log_info(f"[install] 권한 문제로 sudo 삭제 시도: {service_dir}")
@@ -289,6 +296,10 @@ def install(
                 # 4. Setup Base
                 log_info("[install] Vault 기본 구성(Setup) 적용")
                 setup_vault_base() # Call internal CLI command function
+
+                # 5. Deploy Windows Startup Script (if WSL)
+                if "WSL_DISTRO_NAME" in os.environ:
+                    deploy_vault_startup_script()
                 
             except Exception as e:
                 log_warn(f"[install] Vault 자동 구성 중 오류 발생: {e}")
@@ -303,6 +314,21 @@ def install(
             check_container("filebeat")
         elif svc == "keycloak":
              check_container("keycloak")
+             
+             # [Auto-Provisioning] Keycloak Realm/Client Setup
+             try:
+                 log_info("[install] Keycloak 구성(Setup) 자동 실행...")
+                 
+                 # Dynamic Import to avoid top-level dependency issues
+                 sys.path.append(os.path.join(PROJECT_ROOT, "scripts", "ai4radmed"))
+                 import keycloak_setup
+                 
+                 # Execute Setup
+                 keycloak_setup.main()
+                 log_info("[install] Keycloak 자동 구성 완료")
+                 
+             except Exception as e:
+                 log_error(f"[install] Keycloak 자동 구성 실패: {e}")
         elif svc == "orthanc":
              check_container("orthanc")
         else:
@@ -343,6 +369,13 @@ def install(
         
 
         log_info(f"[install] {svc} 설치 및 점검 완료")
+
+        if svc == "ldap":
+             log_info("[install] LDAP 사용자 시딩(Seeding) 시도...")
+             # Wait briefly for startup
+             import time
+             time.sleep(5)
+             seed_ldap_users()
 
 @app.command()
 def backup(
@@ -778,6 +811,119 @@ def setup_vault_base():
 
     log_info("[setup_vault_base] 기본 구성 완료. (세부 정책은 각 서비스 프로젝트에서 설정하십시오)")
 
+def seed_ldap_users():
+    """
+    LDAP 초기 사용자 데이터(users.ldif)를 수동으로 주입합니다.
+    (볼륨 마운트 시 발생하던 컨테이너 크래시 문제를 우회하기 위함)
+    """
+    log_info("[seed_ldap_users] 데이터 시딩 시작")
+    
+    # 1. 이미 데이터가 있는지 확인 (Idempotency)
+    # Check for 'cn=admin,ou=People,dc=ai4radmed,dc=internal' or just 'ou=People'
+    check_cmd = [
+        "docker", "exec", "ai4radmed-ldap",
+        "ldapsearch", "-x", "-H", "ldap://localhost",
+        "-b", "ou=People,dc=ai4radmed,dc=internal",
+        "(objectclass=*)"
+    ]
+    try:
+        # If grep succeeds, data exists
+        res = subprocess.run(check_cmd, capture_output=True, text=True)
+        if res.returncode == 0 and "numEntries" in res.stdout:
+            log_info("[seed_ldap_users] 이미 데이터가 존재합니다. 시딩을 건너뜁니다.")
+            return
+    except Exception:
+        pass
+
+    # 2. LDIF 파일 경로 (Host -> Container Copy)
+    # Since volume mount is disabled, we must copy the file into the container explicitly
+    host_ldif = f"{PROJECT_ROOT}/templates/ldap/ldifs/users.ldif"
+    container_ldif = "/tmp/users.ldif"
+    
+    if not os.path.exists(host_ldif):
+        log_error(f"[seed_ldap_users] LDIF 파일이 없습니다: {host_ldif}")
+        return
+
+    try:
+        # Copy
+        subprocess.run(["docker", "cp", host_ldif, f"ai4radmed-ldap:{container_ldif}"], check=True)
+        
+        # Apply
+        # ldapadd -x -H ldap://localhost -D "cn=admin,dc=ai4radmed,dc=internal" -w admin -f /tmp/users.ldif
+        # Need config values
+        cfg = load_config(f"{PROJECT_ROOT}/config/ldap.yml")
+        # Envs are loaded in main via dot_env, but let's grab from there or env vars
+        # Actually .env is loaded.
+        
+        admin_dn = "cn=admin,dc=ai4radmed,dc=internal" # Default pattern
+        admin_pw = os.getenv("LDAP_ADMIN_PASSWORD", "admin")
+        
+        # [Refactor] Use dynamic DN if possible, but for now hardcode matching users.ldif
+        
+        add_cmd = [
+            "docker", "exec", "ai4radmed-ldap",
+            "ldapadd", "-c", "-x", "-H", "ldap://localhost",
+            "-D", admin_dn,
+            "-w", admin_pw,
+            "-f", container_ldif
+        ]
+        
+        subprocess.run(add_cmd, check=True)
+        log_info("[seed_ldap_users] 데이터 시딩 성공")
+        
+    except subprocess.CalledProcessError as e:
+        log_error(f"[seed_ldap_users] 시딩 실패: {e}")
+    except Exception as e:
+        log_error(f"[seed_ldap_users] 예외 발생: {e}")
+
+@app.command()
+def deploy_vault_startup_script():
+    """
+    WSL 환경에서 Vault Auto-Unseal 스크립트를 Windows 시작 프로그램 폴더로 배포
+    """
+    log_info("[deploy_vault_startup_script] Windows 시작 프로그램 등록 시도...")
+    
+    script_path = Path(f"{BASE_DIR}/vault/Startup/auto_unseal.bat")
+    if not script_path.exists():
+        log_warn(f"[deploy_vault_startup_script] 스크립트가 없습니다: {script_path}")
+        return
+
+    # Windows %APPDATA% 가져오기 (CMD 출력 = cp949/euc-kr 등)
+    try:
+        # Startup 폴더 표준 경로: %APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup
+        win_appdata_raw = subprocess.check_output(
+            ["cmd.exe", "/c", "echo %APPDATA%"],
+            stderr=subprocess.DEVNULL,
+        )
+        # Decode and cleanup
+        try:
+            win_appdata = win_appdata_raw.decode("cp949").strip()
+        except UnicodeDecodeError:
+            win_appdata = win_appdata_raw.decode("utf-8", errors="ignore").strip()
+            
+        win_appdata = win_appdata.replace("\\", "/")
+        
+        # WSL Mount Point (/mnt/c/...) 변환
+        # C:\Users\Ben\AppData... -> /mnt/c/Users/Ben/AppData...
+        # Drive letter logic: C: -> /mnt/c
+        if win_appdata[1:3] == ":/": # C:/Users...
+            drive = win_appdata[0].lower()
+            path_rest = win_appdata[3:]
+            target_dir = f"/mnt/{drive}/{path_rest}/Microsoft/Windows/Start Menu/Programs/Startup"
+        else:
+             # Fallback or already Unix-like (unlikely from cmd)
+             log_warn(f"[deploy_vault_startup_script] 경로 변환 실패: {win_appdata}")
+             return
+
+        target_file = f"{target_dir}/auto_unseal.bat"
+        
+        # Copy
+        subprocess.run(["cp", str(script_path), target_file], check=True)
+        log_info(f"[deploy_vault_startup_script] 배포 완료: {target_file}")
+        
+    except Exception as e:
+        log_warn(f"[deploy_vault_startup_script] 배포 실패 (Windows 연동 오류): {e}")
+
 @app.command()
 def clean_backups(service: str = typer.Argument("all", help="백업을 삭제할 서비스 (all 또는 서비스명)")):
     """서비스의 모든 백업 데이터를 삭제합니다."""
@@ -910,6 +1056,63 @@ def setup_cron():
             
     except subprocess.CalledProcessError as e:
         log_error(f"[setup_cron] Crontab 등록 실패: {e.stderr}")
+
+
+@app.command()
+def setup_host_network():
+    """
+    [Dev] 호스트 네트워크 설정 자동화 (sudo 필요)
+    1. Root CA 신뢰 등록 (Linux/WSL)
+    2. /etc/hosts 도메인 등록 (ai4radmed.internal)
+    """
+    
+    # 1. Trust Root CA (Linux/WSL)
+    if os.path.exists("/usr/local/share/ca-certificates"):
+        ca_src = "/opt/ai4radmed/certs/ca/rootCA.pem"
+        ca_dst = "/usr/local/share/ca-certificates/ai4radmed-rootCA.crt"
+        
+        if os.path.exists(ca_dst):
+            log_info("[setup_host_network] Root CA가 이미 등록되어 있음 (Skip)")
+        elif os.path.exists(ca_src):
+            log_info("[setup_host_network] Root CA 신뢰 등록 시도 (Linux/WSL)")
+            subprocess.run(["sudo", "cp", ca_src, ca_dst], check=True)
+            subprocess.run(["sudo", "update-ca-certificates"], check=True)
+            log_info("[setup_host_network] Root CA 등록 완료")
+        else:
+            log_warn("[setup_host_network] CA 소스 파일이 없어 등록을 건너뜁니다.")
+
+    # 2. Update /etc/hosts
+    hosts_template = os.path.join(PROJECT_ROOT, "templates/hosts/ai4radmed.hosts")
+    
+    if not os.path.exists(hosts_template):
+        log_warn(f"[setup_host_network] {hosts_template} 파일이 없어 업데이트를 중단합니다.")
+        return
+
+    try:
+        with open(hosts_template, "r") as f:
+            hosts_entry = f.read()
+            
+        with open("/etc/hosts", "r") as f:
+            content = f.read()
+            
+        # 템플릿 파일의 주석(# [AI4RADMED])을 기준으로 중복 체크
+        marker = "# [AI4RADMED]"
+        if marker not in content:
+            log_info("[setup_host_network] /etc/hosts 도메인 추가 시도 (sudo)")
+            # 템플릿 내용을 파일 끝에 추가
+            cmd = f"echo '{hosts_entry}' | sudo tee -a /etc/hosts > /dev/null"
+            subprocess.run(cmd, shell=True, check=True)
+            log_info("[setup_host_network] /etc/hosts 업데이트 완료")
+        else:
+            log_info("[setup_host_network] /etc/hosts에 이미 설정되어 있음 (Skip)")
+            
+    except Exception as e:
+        log_error(f"[setup_host_network] /etc/hosts 업데이트 실패: {e}")
+
+    # 3. WSL Environment Check & Windows Trust
+    if os.getenv("WSL_DISTRO_NAME"):
+         log_info("[setup_host_network] WSL 환경 감지됨: Windows 인증서 설치를 시도합니다.")
+         install_root_ca_windows()
 
 
 if __name__ == "__main__":

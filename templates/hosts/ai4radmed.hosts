@@ -1,0 +1,2 @@
+# [AI4RADMED] Local Dev Domains
+127.0.0.1 auth.ai4radmed.internal keycloak.ai4radmed.internal vault.ai4radmed.internal orthanc.ai4radmed.internal ldap.ai4radmed.internal nginx.ai4radmed.internal

@@ -6,10 +6,10 @@ Requires=docker.service
 [Service]
 Type=oneshot
 User=root
-WorkingDirectory=/home/ben/projects/ai4infra
-Environment="PROJECT_ROOT=/home/ben/projects/ai4infra"
+WorkingDirectory=/home/ben/projects/ai4radmed
+Environment="PROJECT_ROOT=/home/ben/projects/ai4radmed"
 Environment="BASE_DIR=/opt/ai4radmed"
-ExecStart=/home/ben/projects/ai4infra/.venv/bin/python /home/ben/projects/ai4infra/scripts/ai4radmed/ai4radmed-cli.py unseal-vault
+ExecStart=/home/ben/projects/ai4radmed/.venv/bin/python /home/ben/projects/ai4radmed/scripts/ai4radmed/ai4radmed-cli.py unseal-vault
 RemainAfterExit=yes
 
 [Install]

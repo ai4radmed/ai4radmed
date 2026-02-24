@@ -12,11 +12,18 @@ setup-vault:
 setup-cron:
 	$(PYTHON) scripts/ai4radmed/ai4radmed-cli.py setup_cron
 
+setup-host-network: ## [Dev] Configure /etc/hosts and Trust Root CA (sudo required)
+	$(PYTHON) scripts/ai4radmed/ai4radmed-cli.py setup-host-network
+
 install-postgres:
 	$(PYTHON) scripts/ai4radmed/ai4radmed-cli.py install postgres
 
 install-postgres--reset:
 	$(PYTHON) scripts/ai4radmed/ai4radmed-cli.py install postgres --reset
+
+test-core: ## Verify Core Services (Postgres, LDAP, etc.) from tests/core
+	@echo "Running Core Infrastructure Functional Tests..."
+	@$(PYTHON) -m pytest -v --html=tests/report.html --self-contained-html tests/core/
 
 backup-postgres:
 	$(PYTHON) scripts/ai4radmed/ai4radmed-cli.py backup postgres

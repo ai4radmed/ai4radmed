@@ -122,7 +122,7 @@ def ensure_network(networks=None):
     기본값: ai4infra-public, ai4infra-app, ai4infra-data
     """
     if networks is None:
-        networks = ["ai4infra-public", "ai4infra-app", "ai4infra-data"]
+        networks = ["ai4radmed-public", "ai4radmed-app", "ai4radmed-data"]
 
     for net in networks:
         cmd = ['docker', 'network', 'ls', '--filter', f'name={net}', '--format', '{{.Name}}']

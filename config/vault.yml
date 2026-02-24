@@ -10,6 +10,7 @@ backup:
 env_vars:
   VAULT_ADDR: "${VAULT_ADDR}"
   VAULT_API_ADDR: "${VAULT_API_ADDR}"
+  VAULT_CACERT: "${VAULT_CACERT}"
 
 compose_vars:
   VAULT_MEM_LIMIT: "640m"

@@ -22,16 +22,21 @@ services:
       LDAP_DOMAIN: "${LDAP_DOMAIN}"
       LDAP_ADMIN_PASSWORD: "${LDAP_ADMIN_PASSWORD}"
       # [Refactor] Standardized filenames matching certs_manager.py
-      LDAP_TLS_CRT_FILENAME: "certificate.crt"
-      LDAP_TLS_KEY_FILENAME: "private.key"
-      LDAP_TLS_CA_CRT_FILENAME: "rootCA.crt"
-      LDAP_TLS_VERIFY_CLIENT: "try"
+      # LDAP_TLS_CRT_FILENAME: "certificate.crt"
+      # LDAP_TLS_KEY_FILENAME: "private.key"
+      # LDAP_TLS_CA_CRT_FILENAME: "rootCA.crt"
+      # LDAP_TLS_VERIFY_CLIENT: "try"
+      LDAP_TLS: "false"
       CONTAINER_LOG_LEVEL: "5"
 
     volumes:
       - ${DATA_DIR:-/opt/ai4radmed/ldap/database}:/var/lib/ldap:z
       - ${CONF_DIR:-/opt/ai4radmed/ldap/config}:/etc/ldap/slapd.d:z
-      - ${CERTS_DIR:-/opt/ai4radmed/ldap/certs}:/container/service/slapd/assets/certs:z
+      # - ${CERTS_DIR:-/opt/ai4radmed/ldap/certs}:/container/service/slapd/assets/certs:z
+      # [Seed] Initial Users
+      # Map to a safe location or ensure directory structure prevents crash.
+      # Currently manual seed via 'make seed-users' or script is preferred to avoid volume mount crash loops.
+      # - /opt/ai4radmed/ldap/ldifs/users.ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom/users.ldif
 
     healthcheck:
       test: [ "CMD", "ldapsearch", "-x", "-H", "ldap://localhost", "-b", "", "-s", "base", "(objectclass=*)", "namingContexts" ]

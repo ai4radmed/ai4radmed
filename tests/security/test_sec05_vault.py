@@ -1,39 +1,50 @@
 import pytest
-import requests
-import urllib3
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
-VAULT_ADDR = "https://127.0.0.1:8200"
+import subprocess
+import json
 
 def test_vault_status():
     """
     [SEC-05] Vault Status Check
-    Verify Vault is reachable and its sealing status.
+    Verify Vault is reachable via Docker Exec (Internal) as Host Port is closed [SEC-08].
     """
+    # Use docker exec to check status inside the container
+    cmd = [
+        "docker", "exec", "ai4radmed-vault",
+        "vault", "status",
+        "-address=https://127.0.0.1:8200",
+        "-tls-skip-verify", # Internal check checks functionality, not cert validity from localhost
+        "-format=json"
+    ]
+    
     try:
-        resp = requests.get(f"{VAULT_ADDR}/v1/sys/health", verify=False)
+        # Check return code. 
+        # 0 = Unsealed
+        # 2 = Sealed
+        # 1 = Error
+        result = subprocess.run(cmd, capture_output=True, text=True)
         
-        # 200: Active (Unsealed)
-        # 429: Standby (Unsealed)
-        # 501: Not Initialized
-        # 503: Sealed
+        stdout = result.stdout
+        print(f"Vault Status Output: {stdout}")
         
-        status_code = resp.status_code
-        
-        if status_code == 200:
+        # If sealed, it returns exit code 2. If active, 0.
+        if result.returncode == 0:
             print("Vault is Unsealed and Active.")
-        elif status_code == 503:
-            # Depending on if we ran auto-unseal, this might be okay or fail.
-            # But the service exists.
+        elif result.returncode == 2:
             print("Vault is Sealed.")
         else:
-             print(f"Vault Status Code: {status_code}")
+             pytest.fail(f"Vault Error (Code {result.returncode}): {result.stderr}")
              
-        # At minimum, it should talk to us (not connection error)
-        assert status_code in [200, 429, 501, 503]
-        
-    except requests.exceptions.ConnectionError:
-        pytest.fail("Vault container is unreachable at https://127.0.0.1:8200")
+        # Parse JSON if possible
+        try:
+            status = json.loads(stdout)
+            assert "sealed" in status
+        except json.JSONDecodeError:
+            pass
+            
+    except FileNotFoundError:
+        pytest.fail("Docker command not found.")
+    except Exception as e:
+        pytest.fail(f"Unexpected error: {e}")
 
 if __name__ == "__main__":
     test_vault_status()
