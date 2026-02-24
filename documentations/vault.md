@@ -47,7 +47,45 @@
 
 ---
 
-## 3. 구축 가이드 (Reference)
+## 3. Smart Key Strategy (USB + Server File)
+
+본 프로젝트는 보안성과 개발 편의성(잦은 재부팅)의 균형을 위해 **"Smart Key"** 전략을 사용합니다.
+
+### 3.1 Strategy Overview
+- **개념**: 물리적 USB(Key)가 서버에 꽂혀 있을 때만 서버 내부의 비밀번호로 Unseal을 수행합니다. (자동차 스마트키 원리)
+- **보안 원리**: **지식의 분리 (Split Knowledge)**
+    - **Physical Token**: 암호화된 Unseal Key 파일 (`vault_keys.enc`) -> **USB에 저장**.
+    - **Knowledge Token**: 복호화 비밀번호 -> **서버 내부 안전 영역** (`root` only) 및 **외부 비트바르덴(Bitwarden)** 에 분산 저장.
+
+### 3.2 Auto-Unseal Workflow
+1.  **Boot**: 서버 부팅 시 `auto-unseal` 스크립트 실행.
+2.  **Check**: USB 마운트 확인 및 `vault_keys.enc` 존재 여부 확인.
+3.  **Decrypt**: 서버 내부의 복호화 비밀번호를 사용하여 Unseal Key를 메모리 상에서 복호화.
+4.  **Unseal**: Vault API를 호출하여 Unseal 수행.
+5.  **FailSafe**: USB가 없거나 복호화 실패 시 관리자 개입 요청 (수동 입력).
+
+### 3.3 Disaster Recovery (재해 복구)
+- **USB 분실**: 금고에 보관된 **예비 USB** 사용.
+- **서버 디스크 파손**: 외부 **Bitwarden** (Secure Note)에 백업된 복호화 비밀번호를 참조하여 서버 파일 복구.
+- **Whole System Down**: 어떠한 경우에도 외부(Bitwarden)에 비밀번호가 있고, 물리적(금고)으로 Unseal Key가 있으므로 복구 가능.
+
+### 3.4 Vault Provisioning Strategy (볼트 프로비저닝)
+> **원칙**: `ai4radmed`는 **범용적인 인프라 환경(Base)**만 구성하며, 특정 서비스(APP)에 종속된 정책(Policy)이나 역할(Role)은 정의하지 않습니다.
+
+1.  **Common Infrastructure (ai4radmed 담당)**:
+    *   **KV Engine (v2) 활성화**: `secret/` 경로. (모든 앱의 공통 저장소)
+    *   **AppRole Auth 활성화**: `auth/approle/` 경로. (서버 인증 표준)
+    *   **Audit Log 활성화**: `file` 디바이스 (`/vault/logs/audit.log`). (보안 감사 필수)
+    *   **Action**: `setup-vault-base` 명령어로 구현.
+
+2.  **Service Specific (각 앱 프로젝트 담당)**:
+    *   **Policy Definition**: 특정 경로(`secret/my-app/*`)에 대한 접근 제어.
+    *   **Role Creation**: 앱별 인증 역할(`my-app-role`) 및 Secret ID 발급.
+    *   **Secret Injection**: 실제 사용할 키/데이터 저장.
+
+---
+
+## 4. 구축 가이드 (Reference)
 *아래 내용은 기존 Wiki에서 이관된 기술 상세 노트입니다.*
 
 ### 도커 이미지 및 변수

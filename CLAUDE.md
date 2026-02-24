@@ -1,4 +1,4 @@
-# Gemini Code Assistant (Antigravity) Guidelines
+# Claude Code Guidelines
 
 > **[필수]** 이 프로젝트의 모든 AI 에이전트 공통 원칙은 아래 파일을 최우선으로 참고하십시오.
 > 👉 **`documentations/ai-agent-guidelines.md` 파일 내용 전체 읽기 및 숙지 필수**
@@ -8,5 +8,5 @@
 - 예: Vault 관련 작업 → `documentations/vault.md`
 - 예: OIDC 게이트웨이 작업 → `documentations/oidc-gateway.md`
 
-## Gemini 전용 특화 지점
-- 현재 특별히 추가된 Gemini 전용 지침은 없으나, 필요시 이 파일에 작성합니다.
+## Claude 전용 특화 지점
+- 현재 특별히 추가된 Claude 전용 지침은 없으나, 필요시 이 파일에 작성합니다.
