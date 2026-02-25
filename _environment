@@ -2,7 +2,7 @@
 
 PROJECT_NAME=ai4radmed
 
-PROJECT_ROOT=/home/ben/projects/ai4infra
+PROJECT_ROOT=/home/ben/projects/ai4radmed
 # PROJECT_ROOT=C:\Users\ben\projects\rpy-quarto-template    # Linux
 # PROJECT_ROOT=$HOME/projects/rpy-quarto-template        # macOS
 # PROJECT_ROOT=$USERPROFILE/projects/rpy-quarto-template # Windows

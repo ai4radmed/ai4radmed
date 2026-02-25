@@ -1,0 +1,26 @@
+---
+description: AI 에이전트 공통 지침 — ai-agent-guidelines.md 최우선 참조
+alwaysApply: true
+---
+
+# AI Agent Guidelines (필수 참조)
+
+이 프로젝트의 **모든 AI 에이전트**는 아래를 최우선으로 따릅니다.
+
+## 1. 공통 지침 (필수)
+- **`documentations/ai-agent-guidelines.md`** 파일 내용을 **전체 읽고 숙지**한 뒤 작업합니다.
+- 해당 문서에 정의된 **언어 정책(한국어)**, **코드 철학(가독성·로깅·Fail Loudly·테스트)**, **코딩 컨벤션**, **보안 원칙**을 준수합니다.
+
+## 2. 서비스/도메인별 문서
+특정 서비스나 도메인을 다룰 때는 `ai-agent-guidelines.md` **Section 4**에 링크된 해당 가이드를 참조합니다.
+- **문서 인덱스(주제별 매핑)**: `documentations/README.md`에서 "어떤 주제 → 어떤 문서"를 빠르게 확인할 수 있습니다.
+
+예:
+- Vault 관련 → `documentations/vault.md`
+- OIDC 게이트웨이 → `documentations/oidc-gateway.md`
+- Postgres, 보안, 운영, ELK, Orthanc 등 → `documentations/README.md` 또는 `ai-agent-guidelines.md` Section 4 참조
+
+## 3. 진입점
+- Claude 사용 시: `CLAUDE.md`
+- Gemini 사용 시: `GEMINI.md`
+- 상세 규칙은 항상 **`documentations/ai-agent-guidelines.md`** 를 기준으로 합니다.

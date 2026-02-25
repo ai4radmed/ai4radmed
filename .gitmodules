@@ -1,4 +1,4 @@
 [submodule "wiki"]
 	path = wiki
-	url = git@github.com:RPythonStudy/ai4infra.wiki.git
+	url = git@github.com:RPythonStudy/ai4radmed.wiki.git
 	branch = master

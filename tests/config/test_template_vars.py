@@ -100,15 +100,19 @@ def test_template_variable_consistency(service):
     # 3. Whitelist Update
     # - Global .env vars
     # - Auto-injected vars by env_manager.py
+    # - env_vars에만 정의된 변수 (config에는 있으나 compose_vars가 아닌 경우)
     global_whitelist = {
         "PROJECT_ROOT", "BASE_DIR", "PROJECT_NAME", "DOMAIN_NAME",
         # Auto-injected by env_manager
-        "DATA_DIR", "CONF_DIR", "CERTS_DIR",
+        "DATA_DIR", "CONF_DIR", "CERTS_DIR", "LOGS_DIR", "HTTP_PORT", "HTTPS_PORT",
         # Credentials (usually in .env)
-        "ORTHANC_ADMIN_PASSWORD", "ORTHANC_DB_PASSWORD", 
+        "ORTHANC_ADMIN_PASSWORD", "ORTHANC_DB_PASSWORD", "ORTHANC_DB_USERNAME",
         "POSTGRES_USER", "POSTGRES_PASSWORD", "POSTGRES_DB",
         "KEYCLOAK_ADMIN", "KEYCLOAK_ADMIN_PASSWORD",
-        "VAULT_ADDR", "VAULT_TOKEN", "OPENREM_SECRET_KEY"
+        "KC_DB", "KC_DB_USERNAME", "KC_DB_PASSWORD", "KC_DB_URL",
+        "LDAP_ORGANISATION", "LDAP_DOMAIN", "LDAP_ADMIN_PASSWORD",
+        "OIDC_PROVIDER", "OIDC_CLIENT_ID", "OIDC_CLIENT_SECRET", "OIDC_COOKIE_SECRET",
+        "VAULT_ADDR", "VAULT_TOKEN", "VAULT_CACERT", "VAULT_API_ADDR", "OPENREM_SECRET_KEY",
     }
     
     missing_vars = []
