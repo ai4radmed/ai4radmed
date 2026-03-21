@@ -9,9 +9,10 @@
 
 | 대상 | 파일 | 설명 |
 |------|------|------|
+| **AI 에이전트 (필수)** | [../AGENTS.md](../AGENTS.md) | AI 에이전트 통합 진입점 (System Map) |
 | **공통 지침 (필수)** | [ai-agent-guidelines.md](ai-agent-guidelines.md) | 언어 정책, 코드 철학, 코딩 컨벤션, 보안·테스트·배포 전략 등 **전체 규칙** |
-| Claude | 프로젝트 루트 `CLAUDE.md` | Claude용 진입점 → 위 공통 지침 참조 |
-| Gemini | 프로젝트 루트 `GEMINI.md` | Gemini용 진입점 → 위 공통 지침 참조 |
+| Claude | [../CLAUDE.md](../CLAUDE.md) | Claude용 진입점 → AGENTS.md 참조 |
+| Gemini | [../GEMINI.md](../GEMINI.md) | Gemini용 진입점 → AGENTS.md 참조 |
 
 ---
 

@@ -41,7 +41,7 @@
 
 -   검증된 오픈소스로 **12 Pillars of World Class Security** 구현:
     Immutable Infrastructure, WAF, Network Segmentation, DDoS/Rate Limiting, Zero Trust Gateway, Centralized Identity (OIDC), MFA, RBAC, Secret Management (Vault), Split Knowledge, E2E Encryption, Audit Logging
--   상세 구현 계획: [Security Implementation Plan](documentations/security-implementation-plan.md) 참조.
+-   상세 구현 계획: [Security Implementation Plan](documents/security-implementation-plan.md) 참조.
 
 ## 1. Project Context (프로젝트 개요)
 - **이름**: `ai4radmed` — RPython 연구회의 공통 인프라(보안, 데이터베이스 등) 구축/관리 플랫폼.
@@ -52,7 +52,7 @@
 - **Languages**: Python 3.x (`.python-version` 참조), R (`renv`).
 - **Virtual Environment**: Python `.venv` (표준 `venv`), R `renv`.
 - **Configuration**: `.env` 파일에서 환경변수(`PROJECT_NAME`, `LOG_LEVEL` 등) 로드.
-- **WSL2/배포 환경 설정**: [Operations Guide](documentations/operations.md) 참조.
+- **WSL2/배포 환경 설정**: [Operations Guide](documents/operations.md) 참조.
 
 ## 3. Coding Standards (코딩 컨벤션)
 > 코드의 "왜"는 Section 0.1 철학을 따르고, 여기서는 **"어떻게"** 만 기술합니다.
@@ -75,33 +75,33 @@
 
 ## 4. Project Structure (프로젝트 구조)
 
-프로젝트의 세부 아키텍처는 `documentations/` 폴더 내 각 문서를 참조하십시오.
+프로젝트의 세부 아키텍처는 `documents/` 폴더 내 각 문서를 참조하십시오.
 
 > **규칙**: 실제 존재하는 문서만 기재. 서비스 추가 시 문서를 생성한 뒤 이 목록에 추가할 것.
 
 **1. Core Infrastructure (필수/기반)**
-- [PostgreSQL Service Guide](documentations/postgres.md): 공통 관계형 데이터베이스 및 2-Step TLS.
-- [Vault Service Guide](documentations/vault.md): 보안 키/시크릿 관리, Smart Key, Auto-Unseal.
-- [Security Implementation Plan](documentations/security-implementation-plan.md): 12 Pillars 구현 계획 및 검증 체크리스트.
-- [Operations Guide](documentations/operations.md): WSL2 설정, 오프라인 배포, 자동 구동 전략.
+- [PostgreSQL Service Guide](documents/postgres.md): 공통 관계형 데이터베이스 및 2-Step TLS.
+- [Vault Service Guide](documents/vault.md): 보안 키/시크릿 관리, Smart Key, Auto-Unseal.
+- [Security Implementation Plan](documents/security-implementation-plan.md): 12 Pillars 구현 계획 및 검증 체크리스트.
+- [Operations Guide](documents/operations.md): WSL2 설정, 오프라인 배포, 자동 구동 전략.
 
 **2. Application Services (선택)**
-- [Vaultwarden Service Guide](documentations/vaultwarden.md): 패스워드 매니저.
+- [Vaultwarden Service Guide](documents/vaultwarden.md): 패스워드 매니저.
 
 **3. Identity Management (선택 - SSO/계정)**
-- [OpenLDAP Guide](documentations/ldap.md): 중앙 계정 저장소.
-- [Keycloak Guide](documentations/keycloak.md): 통합 인증 및 SSO.
+- [OpenLDAP Guide](documents/ldap.md): 중앙 계정 저장소.
+- [Keycloak Guide](documents/keycloak.md): 통합 인증 및 SSO.
 
 **4. Gateway & Access Control (선택 - 접근 제어)**
-- [OIDC Gateway Guide](documentations/oidc-gateway.md): OpenResty 기반 Zero Trust 게이트웨이.
+- [OIDC Gateway Guide](documents/oidc-gateway.md): OpenResty 기반 Zero Trust 게이트웨이.
 
 **5. Observability (선택 - 로그/모니터링)**
-- [ELK Stack Guide](documentations/elk.md): 로그 수집 및 시각화.
+- [ELK Stack Guide](documents/elk.md): 로그 수집 및 시각화.
 
 **6. Medical & AI Data Ops (선택 - 의료/AI 특화)**
-- [Orthanc Guide](documentations/orthanc.md): 의료 영상(DICOM) PACS 서버.
-- [Slicer Guide](documentations/slicer.md): 3D Slicer 이미지 분석.
-- [OpenREM Guide](documentations/openrem.md): 방사선량 관리 플랫폼.
+- [Orthanc Guide](documents/orthanc.md): 의료 영상(DICOM) PACS 서버.
+- [Slicer Guide](documents/slicer.md): 3D Slicer 이미지 분석.
+- [OpenREM Guide](documents/openrem.md): 방사선량 관리 플랫폼.
 
 **주요 디렉터리:**
 - `templates/`: 서비스별 Docker Compose 템플릿. 서비스 생성 시 복사하여 사용.
@@ -125,7 +125,7 @@
 ## 6. Automation & Workflow (자동화)
 - `make setup`: 초기 환경 설정. `make venv`: 가상환경 생성.
 - 새 기능은 가급적 Makefile 타겟이나 `scripts/` 내 파이썬 스크립트로 모듈화.
-- 오프라인 설치, 자동 구동 전략: [Operations Guide](documentations/operations.md) 참조.
+- 오프라인 설치, 자동 구동 전략: [Operations Guide](documents/operations.md) 참조.
 
 ### Reset Strategy (Clean Install)
 > `--reset` 사용 시, 반드시 **컨테이너 자체를 삭제**(`docker rm -f`)해야 합니다.
@@ -156,7 +156,7 @@
 
 ### Reporting
 - 비전문가도 이해 가능한 문서 형태 리포트 (GS 인증 제출용).
-- 경로: `documentations/test-reports/{version}/report_{date}.md`
+- 경로: `documents/test-reports/{version}/report_{date}.md`
 
 ## 9. Application Delivery Strategy (앱 배포 전략)
 > **원칙**: "사용자는 **컨테이너**로 실행, 개발자는 **로컬 가상환경**에서 개발."

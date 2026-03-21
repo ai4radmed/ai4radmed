@@ -3,9 +3,8 @@
 # 1. 가상환경 생성은 가장 먼저 분리
 
 venv:
-	python scripts/setup/setup_pyenv.py
-	python scripts/setup/setup_venv.py
-	@echo "[setup_venv] Python virtual environment created."
+	uv sync
+	@echo "[setup_venv] Python environment managed by uv."
 	
 # 개별 실행 가능한 타겟 분리
 env:
@@ -53,7 +52,7 @@ backup:
 	python scripts/setup/backup.py
 
 freeze:
-	pip freeze > requirements.txt
+	uv lock
 
 update:
 	python scripts/setup/update.py	

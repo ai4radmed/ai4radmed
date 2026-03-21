@@ -185,4 +185,4 @@ docker ps | grep orthanc
 ## 📚 References
 - [DCMTK Documentation](https://dicom.offis.de/dcmtk.php.en)
 - [Orthanc DICOM Guide](https://book.orthanc-server.com/users/dicom-guide.html)
-- [ai4infra Orthanc Documentation](../../documentations/orthanc.md)
+- [ai4infra Orthanc Documentation](../../documents/orthanc.md)

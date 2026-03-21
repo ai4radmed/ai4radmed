@@ -8,7 +8,7 @@ from pathlib import Path
 # --- Configuration ---
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 TEST_DIR = PROJECT_ROOT / "tests"
-REPORT_DIR = PROJECT_ROOT / "documentations" / "test-reports"
+REPORT_DIR = PROJECT_ROOT / "documents" / "test-reports"
 VERSION = os.getenv("PROJECT_VERSION", "v0.0.1")  # Default version
 
 def setup_directories():
